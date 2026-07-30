@@ -10,6 +10,7 @@ const desktop = window.agentMonitor
 const config = ref<AppConfig | null>(null)
 const runtime = ref<RuntimeState | null>(null)
 const loading = ref(true)
+const runtimeRefreshing = ref(false)
 const errorMessage = ref('')
 const cleanups: Array<() => void> = []
 
@@ -37,7 +38,19 @@ onMounted(async () => {
 onBeforeUnmount(() => cleanups.splice(0).forEach((cleanup) => cleanup()))
 
 async function refreshRuntime(): Promise<void> {
-  runtime.value = await desktop.getRuntimeState()
+  if (runtimeRefreshing.value) return
+  runtimeRefreshing.value = true
+  try {
+    const [nextRuntime] = await Promise.all([
+      desktop.getRuntimeState(),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 600))
+    ])
+    runtime.value = nextRuntime
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '状态刷新失败'
+  } finally {
+    runtimeRefreshing.value = false
+  }
 }
 </script>
 
@@ -75,7 +88,14 @@ async function refreshRuntime(): Promise<void> {
           设置
         </button>
       </div>
-      <button class="icon-button" title="刷新状态" @click="refreshRuntime">
+      <button
+        class="icon-button"
+        :class="{ 'is-loading': runtimeRefreshing }"
+        :disabled="runtimeRefreshing"
+        :title="runtimeRefreshing ? '正在刷新状态' : '刷新状态'"
+        :aria-label="runtimeRefreshing ? '正在刷新状态' : '刷新状态'"
+        @click="refreshRuntime"
+      >
         <UiIcon name="refresh" />
       </button>
     </nav>
