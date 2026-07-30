@@ -6,7 +6,10 @@ import StatusPill from '../components/StatusPill.vue'
 import UiIcon from '../components/UiIcon.vue'
 
 const props = defineProps<{ config: AppConfig; runtime: RuntimeState }>()
-const emit = defineEmits<{ 'runtime-refresh': [] }>()
+const emit = defineEmits<{
+  'runtime-refresh': []
+  'runtime-update': [state: RuntimeState]
+}>()
 const api = window.agentMonitor
 const busy = ref<string | null>(null)
 const message = ref('')
@@ -35,6 +38,16 @@ function installHook(source: CliSource): void {
   void run(`hook-${source}`, async () => {
     await api.installHook(source)
     emit('runtime-refresh')
+  })
+}
+
+function redetectHooks(): void {
+  void run('detect-hooks', async () => {
+    const [state] = await Promise.all([
+      api.getRuntimeState(),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 600))
+    ])
+    emit('runtime-update', state)
   })
 }
 
@@ -189,11 +202,19 @@ function hookLabel(source: CliSource): string {
           />
           关闭窗口后驻留托盘
         </label>
-        <button class="wide-button" @click="$emit('runtime-refresh')">
-          <UiIcon name="refresh" />重新检测 CLI
+        <button
+          class="wide-button"
+          :class="{ 'is-loading': busy === 'detect-hooks' }"
+          :disabled="busy !== null"
+          title="重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态"
+          @click="redetectHooks"
+        >
+          <UiIcon name="refresh" />
+          {{ busy === 'detect-hooks' ? '检测中…' : '重新检测 Hook' }}
         </button>
         <button
           class="wide-button"
+          :disabled="busy !== null"
           @click="
             run('repair', async () => {
               await api.repairHook('claude')
@@ -215,7 +236,7 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.0</strong></div>
+        <div><span>版本号</span><strong>v0.1.1</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>

@@ -6,7 +6,6 @@ import {
   dialog,
   ipcMain,
   Menu,
-  nativeImage,
   shell,
   Tray,
   type IpcMainInvokeEvent
@@ -31,6 +30,7 @@ import { EventProcessor } from './events/processor'
 import { LocalIpcServer } from './ipc/server'
 import { HookManager } from './hooks/manager'
 import { initializeLogger } from './logging/logger'
+import { createTrayIcon } from './tray-icon'
 
 const hookSource = parseHookSource(process.argv)
 
@@ -195,14 +195,7 @@ function startDesktopApplication(): void {
   }
 
   const createTray = (): Tray => {
-    const svg = encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="10" fill="#7257f5"/><path d="M8 18h3l2-7 4 13 3-9 2 3h3" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    )
-    const image = nativeImage.createFromDataURL(`data:image/svg+xml,${svg}`).resize({
-      width: 20,
-      height: 20
-    })
-    const instance = new Tray(image)
+    const instance = new Tray(createTrayIcon())
     instance.setToolTip('Agent Monitor')
     instance.on('click', showMainWindow)
     return instance

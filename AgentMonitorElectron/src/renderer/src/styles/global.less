@@ -745,6 +745,21 @@ button {
   height: 17px;
 }
 
+.wide-button.is-loading {
+  cursor: wait;
+  color: @violet;
+  background: rgba(111, 85, 232, 0.08);
+}
+
+.wide-button.is-loading .ui-icon {
+  animation: orbit 720ms linear infinite;
+  transform-origin: center;
+}
+
+.wide-button:disabled {
+  opacity: 0.72;
+}
+
 .about-panel__content {
   display: grid;
   grid-template-columns: 52px auto auto 1fr auto;

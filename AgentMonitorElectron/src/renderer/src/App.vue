@@ -101,6 +101,7 @@ async function refreshRuntime(): Promise<void> {
             :config="config"
             :runtime="runtime"
             @runtime-refresh="refreshRuntime"
+            @runtime-update="runtime = $event"
           />
         </Transition>
       </template>
