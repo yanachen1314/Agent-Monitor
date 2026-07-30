@@ -2,7 +2,7 @@
 
 ## 1. 协议目的
 
-定义 Claude Code、Codex CLI Hook 辅助程序与 Agent Monitor 桌面应用之间的本地通信格式。
+定义 Claude Code、Codex CLI 官方生命周期 Hook 调用的 Agent Monitor Hook 脚本与 Electron 主进程之间的本地通信格式。
 
 目标：
 
@@ -15,11 +15,11 @@
 
 ## 2. 通信参与方
 
-- Hook 调用方：Claude Code Stop Hook、Codex CLI Stop Hook。
-- Hook 适配器：`agent-monitor-hook`。
-- IPC 服务端：Agent Monitor 桌面应用。
+- Hook 调用方：Claude Code 官方 Stop Hook、Codex CLI 官方 Stop Hook。
+- Hook 适配器：`agent-monitor-hook` 脚本或其发布版 Hook Runner。
+- IPC 服务端：Agent Monitor Electron 主进程。
 
-协议中的 `turnCompleted` 表示一次 Agent 任务轮次停止或本轮响应结束，不代表用户的整体业务目标已经完成。
+协议中的 `turnStopped` 表示一次 Agent 任务轮次停止或本轮响应结束，不代表用户的整体业务目标已经完成。
 
 ## 3. Hook 命令约定
 
@@ -66,7 +66,7 @@ Hook JSON 通过 stdin 输入。
 | 无 | turnId = null |
 | 当前时间 | timestamp |
 | 固定值 | source = claude |
-| 固定值 | eventType = turnCompleted |
+| 固定值 | eventType = turnStopped |
 
 不发送 `last_assistant_message`、完整 transcript、用户 Prompt、工具参数和代码内容。
 
@@ -93,7 +93,7 @@ Hook JSON 通过 stdin 输入。
 | cwd | cwd |
 | 当前时间 | timestamp |
 | 固定值 | source = codex |
-| 固定值 | eventType = turnCompleted |
+| 固定值 | eventType = turnStopped |
 
 `last_assistant_message` 不进入 IPC。
 
@@ -146,7 +146,7 @@ TCP + 单行 JSON
   "event": {
     "version": 1,
     "source": "claude",
-    "eventType": "turnCompleted",
+    "eventType": "turnStopped",
     "sessionId": "session-001",
     "turnId": null,
     "cwd": "/project/demo",
@@ -171,7 +171,7 @@ TCP + 单行 JSON
 |---|---|---:|---|
 | version | integer | 是 | 当前为 1 |
 | source | string | 是 | claude 或 codex |
-| eventType | string | 是 | 当前仅 turnCompleted |
+| eventType | string | 是 | 当前仅 turnStopped |
 | sessionId | string/null | 否 | 最大 256 字符 |
 | turnId | string/null | 否 | 最大 256 字符 |
 | cwd | string/null | 否 | 最大 4096 字符 |
@@ -252,7 +252,7 @@ TCP + 单行 JSON
 - 不执行事件携带的命令。
 - 不允许 IPC 修改配置、安装 Hook 或打开任意文件。
 
-### Hook 程序
+### Hook 脚本
 
 - 只读取固定位置 runtime.json。
 - 不接受自定义 host/port。
@@ -265,19 +265,19 @@ TCP + 单行 JSON
 Codex：
 
 ```text
-codex:{sessionId}:{turnId}:turnCompleted
+codex:{sessionId}:{turnId}:turnStopped
 ```
 
 Claude：
 
 ```text
-claude:{sessionId}:{3秒时间桶}:turnCompleted
+claude:{sessionId}:{3秒时间桶}:turnStopped
 ```
 
 字段缺失：
 
 ```text
-{source}:unknown:{3秒时间桶}:turnCompleted
+{source}:unknown:{3秒时间桶}:turnStopped
 ```
 
 去重由服务端完成。
@@ -289,7 +289,7 @@ claude:{sessionId}:{3秒时间桶}:turnCompleted
 - 服务端忽略未知字段。
 - `protocolVersion` 与事件 `version` 独立。
 
-## 16. Hook 程序退出码
+## 16. Hook 脚本退出码
 
 提醒失败不影响 CLI，因此通常返回 0：
 

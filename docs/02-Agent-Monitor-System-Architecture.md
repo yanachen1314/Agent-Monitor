@@ -5,218 +5,247 @@
 | 项目 | 内容 |
 |---|---|
 | 文档名称 | Agent Monitor 系统架构设计文档 |
-| 文档版本 | V1.0 |
-| 关联 PRD | Agent Monitor PRD V1.0 |
+| 文档版本 | V1.1 |
+| 关联 PRD | Agent Monitor PRD V1.1 |
 | 目标平台 | Windows 10/11、macOS 13+ |
-| 桌面框架 | Tauri 2 |
-| 前端技术 | Vue 3、TypeScript |
-| 核心语言 | Rust |
-| 音频组件 | rodio |
+| 桌面框架 | Electron |
+| 构建工具 | electron-vite、electron-builder |
+| 界面技术 | Vue 3、TypeScript |
+| 核心运行时 | Electron Main Process、Node.js |
+| 音频组件 | Web Audio API、HTMLAudioElement |
 | IPC | localhost TCP + 随机 Token |
-| 配置存储 | JSON |
+| 配置存储 | 本地 JSON |
 | 支持 CLI | Claude Code、Codex CLI |
 
 ## 2. 架构目标
 
-1. CLI 结束一次 Agent 任务轮次后，在 1 秒内开始播放提示音。
-2. Hook 程序失败不得影响 CLI 主流程。
-3. Claude 和 Codex 配置相互独立。
-4. 默认音频和自定义音频统一解析。
-5. 桌面应用低资源后台运行。
-6. Windows/macOS 共用绝大部分代码。
-7. 前端不直接执行任意系统命令。
-8. 配置、音频、IPC 异常均不得导致崩溃。
-9. 预留 Linux、免打扰、项目级规则等扩展能力。
+1. Claude Code 或 Codex CLI 的一轮 Agent 执行停止后，在 1 秒内开始播放提示音。
+2. 使用两类 CLI 的官方生命周期 Hook，不解析终端文本、不轮询日志。
+3. Hook 脚本失败不得影响 CLI 主流程。
+4. Claude 和 Codex 配置相互独立。
+5. 默认音频和自定义音频统一解析。
+6. 桌面应用低资源后台运行，空闲 CPU 目标低于 1%，空闲内存目标不超过 250 MB。
+7. Windows 与 macOS 共用绝大部分 TypeScript 和 Vue 代码。
+8. Renderer 不直接访问 Node.js、文件系统或任意系统命令。
+9. 配置、音频、IPC 异常均不得导致应用崩溃。
+10. 预留免打扰、项目级规则、最近活动等扩展能力。
 
-## 3. 总体架构
+## 3. 事件语义
+
+协议事件 `turnStopped` 表示：
+
+> Claude Code 或 Codex CLI 的主 Agent 一轮执行已经停止或本轮响应已经结束，CLI 可能正在等待用户查看结果或继续操作。
+
+该事件不代表用户的整体业务目标已经完成，也不代表 CLI 进程已经退出。
+
+## 4. 总体架构
 
 ```text
 Claude Code / Codex CLI
-          │ Stop Hook / stdin JSON
+          │ 官方 Stop Hook / stdin JSON
           ▼
-agent-monitor-hook 辅助程序
-          │ localhost TCP / JSON
+Agent Monitor Hook Script / Hook Runner
+          │ localhost TCP / 单行 JSON / Token
           ▼
-Agent Monitor 桌面应用
+Electron Main Process
           ├── IPC Server
           ├── Event Processor
           ├── Audio Resolver
-          ├── Audio Player
+          ├── Audio Queue
           ├── Config Manager
           ├── Hook Manager
           ├── Tray Manager
+          ├── Startup Manager
           └── Logging
+                    │ 受限 Electron IPC
+                    ▼
+              Preload Bridge
+                    │
+                    ▼
+          Vue Renderer / Audio Runtime
 ```
 
-## 4. 系统组件
+## 5. 进程与组件设计
 
-### 4.1 桌面应用
+### 5.1 Electron 主进程
 
-负责：
+主进程负责：
 
-- 系统托盘和设置窗口。
-- 配置读写。
-- 本地 IPC 服务。
-- 事件接收、过滤、去重和合并。
-- 音频解析和播放队列。
-- Hook 安装、检测、修复。
+- 应用单实例。
+- 系统托盘和窗口生命周期。
+- 配置读取、校验、迁移和原子写入。
+- localhost TCP 服务。
+- Token、协议和字段校验。
+- 事件过滤、去重和合并。
+- 音频路径解析和播放队列。
+- Claude Code、Codex CLI Hook 安装、检测和修复。
 - 开机启动。
 - 本地诊断日志。
 
-不负责：
+主进程不负责：
 
-- 启动或控制 CLI。
+- 启动、暂停或控制 Claude Code/Codex CLI。
+- 判断整体业务目标是否完成。
 - 读取代码或完整 transcript。
-- 分析 Agent 回复。
 - 上传数据。
 
-### 4.2 Hook 辅助程序
+### 5.2 Hook 脚本与 Hook Runner
 
-独立 Rust 二进制：
-
-```text
-Windows: agent-monitor-hook.exe
-macOS: agent-monitor-hook
-```
-
-调用形式：
+Claude Code 和 Codex CLI 的官方 Hook 配置调用 Agent Monitor 提供的脚本：
 
 ```text
 agent-monitor-hook claude
 agent-monitor-hook codex
 ```
 
+开发阶段可直接运行 TypeScript 编译后的 Node.js 脚本。正式发布时打包为用户无需安装 Node.js 即可执行的 Hook Runner：
+
+```text
+Windows: agent-monitor-hook.exe
+macOS: agent-monitor-hook
+```
+
 职责：
 
-1. 识别来源参数。
-2. 读取 stdin JSON。
-3. 转换标准事件。
-4. 读取 runtime.json。
-5. 发送本地 IPC。
+1. 校验来源参数。
+2. 限量读取 stdin JSON。
+3. 将 Claude/Codex Hook 数据转换为标准 `turnStopped` 事件。
+4. 从固定位置读取 `runtime.json`。
+5. 向 Electron 主进程的 localhost TCP 服务发送事件。
 6. 快速退出。
 
-不播放音频、不显示 UI、不访问网络、不修改 CLI 配置、不阻塞主流程。
+Hook 脚本不播放音频、不显示 UI、不修改 CLI 配置、不访问业务网络、不保存原始输入。桌面应用未运行或 IPC 失败时正常退出，不影响原 CLI。
 
-### 4.3 前端设置界面
+### 5.3 Preload Bridge
 
-Vue 3 + TypeScript，主要组件：
-
-```text
-SettingsView
-├── RuntimeStatusCard
-├── DefaultAudioCard
-├── ClaudeMonitorCard
-├── CodexMonitorCard
-├── GeneralSettingsCard
-└── HookDiagnosticsCard
-```
-
-所有系统操作通过受限 Tauri Command 调用 Rust 后端。
-
-## 5. Rust 模块设计
+Preload 使用 `contextBridge` 暴露最小、类型化 API：
 
 ```text
-src-tauri/src/
-├── main.rs
-├── app_state.rs
-├── commands/
-├── config/
-├── ipc/
-├── events/
-├── audio/
-├── hooks/
-├── tray/
-├── startup/
-├── logging/
-└── error.rs
+window.agentMonitor.getConfig()
+window.agentMonitor.updateMonitor()
+window.agentMonitor.updateAudioMode()
+window.agentMonitor.updateVolume()
+window.agentMonitor.importAudio()
+window.agentMonitor.previewAudio()
+window.agentMonitor.getHookStatus()
+window.agentMonitor.repairHook()
+window.agentMonitor.setAutostart()
+window.agentMonitor.onRuntimeStateChanged()
+window.agentMonitor.onAudioCommand()
 ```
 
-建议 Workspace：
+禁止向 Renderer 暴露 `ipcRenderer`、`fs`、`child_process`、`shell` 或任意 Channel 调用能力。
+
+### 5.4 Vue Renderer
+
+主要页面组件：
 
 ```text
-agent-monitor/
-├── apps/desktop
-├── crates/agent-monitor-core
-├── crates/agent-monitor-protocol
-├── crates/agent-monitor-hook
-├── assets
-└── .github/workflows
+App
+├── HomeView
+│   ├── RuntimeStatusCard
+│   ├── LastStoppedEventCard
+│   ├── DefaultAudioCard
+│   └── RecentActivityCard
+└── SettingsView
+    ├── ReminderSettingsCard
+    ├── ClaudeMonitorCard
+    ├── CodexMonitorCard
+    ├── GeneralSettingsCard
+    └── AboutCard
 ```
 
-## 6. 应用状态模型
+Renderer 同时承载音频运行时。窗口关闭到托盘时仅隐藏，不销毁；开机静默启动时创建但不显示窗口，因此 Web Audio 仍可接收主进程发来的播放命令。
 
-```rust
-pub struct AppState {
-    pub config: Arc<RwLock<AppConfig>>,
-    pub audio_player: Arc<AudioPlayer>,
-    pub event_processor: Arc<EventProcessor>,
-    pub ipc_runtime: Arc<RwLock<IpcRuntime>>,
-    pub shutdown: CancellationToken,
+## 6. 建议目录结构
+
+```text
+AgentMonitorElectron/
+├── src/
+│   ├── main/
+│   │   ├── index.ts
+│   │   ├── app-state.ts
+│   │   ├── config/
+│   │   ├── ipc/
+│   │   ├── events/
+│   │   ├── audio/
+│   │   ├── hooks/
+│   │   ├── tray/
+│   │   ├── startup/
+│   │   └── logging/
+│   ├── preload/
+│   │   ├── index.ts
+│   │   └── api.ts
+│   ├── renderer/
+│   │   ├── index.html
+│   │   └── src/
+│   └── hook/
+│       ├── index.ts
+│       ├── adapters/
+│       └── tcp-client.ts
+├── resources/
+│   ├── audio/
+│   ├── icons/
+│   └── hook/
+├── tests/
+├── electron.vite.config.ts
+├── electron-builder.yml
+├── package.json
+└── .github/workflows/
+```
+
+## 7. 应用状态模型
+
+```ts
+interface AppState {
+  config: AppConfig
+  runtime: IpcRuntime | null
+  hookStatus: {
+    claude: HookStatus
+    codex: HookStatus
+  }
+  globalPaused: boolean
+  recentEvents: StoppedEventSummary[]
 }
 ```
 
-音频输出实例全局单例，避免设备竞争和重复初始化。
+主进程持有权威状态。Renderer 只读取状态快照或发起受限更新请求。
 
-## 7. 配置模型
+## 8. 配置模型
 
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppConfig {
-    pub version: u32,
-    pub default_audio: DefaultAudioConfig,
-    pub monitors: MonitorConfigs,
-    pub global_paused: bool,
-    pub auto_start: bool,
-    pub close_to_tray: bool,
+```ts
+interface AppConfig {
+  version: number
+  defaultAudio: {
+    source: 'builtin' | 'imported'
+    path: string
+    volume: number
+  }
+  monitors: {
+    claude: CliMonitorConfig
+    codex: CliMonitorConfig
+  }
+  globalPaused: boolean
+  autoStart: boolean
+  closeToTray: boolean
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DefaultAudioConfig {
-    pub source: AudioSource,
-    pub path: String,
-    pub volume: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorConfigs {
-    pub claude: CliMonitorConfig,
-    pub codex: CliMonitorConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CliMonitorConfig {
-    pub enabled: bool,
-    pub audio_mode: AudioMode,
-    pub custom_audio_path: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AudioMode {
-    Default,
-    Custom,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AudioSource {
-    Builtin,
-    Imported,
+interface CliMonitorConfig {
+  enabled: boolean
+  audioMode: 'default' | 'custom'
+  customAudioPath: string | null
 }
 ```
 
 约束：
 
-- `volume` 范围为 `0.0..=1.0`。
-- `Custom` 且路径无效时回退默认音频。
-- 配置加载后执行标准化校验。
-- 未识别字段忽略，以提高兼容性。
+- `volume` 范围为 `0..1`。
+- 自定义音频无效时回退默认音频。
+- 默认音频无效时回退内置音频。
+- 使用 JSON Schema 或 Zod 做运行时校验。
+- 忽略未知字段，并通过 `version` 执行迁移。
 
-## 8. 配置存储设计
-
-### 8.1 存储目录
+## 9. 配置存储
 
 ```text
 Windows:
@@ -225,8 +254,6 @@ Windows:
 macOS:
 ~/Library/Application Support/AgentMonitor/
 ```
-
-目录结构：
 
 ```text
 AgentMonitor/
@@ -237,147 +264,102 @@ AgentMonitor/
 └── logs/
 ```
 
-### 8.2 原子写入
+原子写入流程：
 
 ```text
 写入 config.json.tmp
-→ flush/sync
+→ fsync
 → 原子替换 config.json
 ```
 
-失败时保留旧配置。
+配置损坏时备份原文件、加载默认配置并向 Renderer 返回结构化警告。
 
-### 8.3 配置迁移
+## 10. 标准事件
 
-```rust
-pub trait ConfigMigration {
-    fn from_version(&self) -> u32;
-    fn to_version(&self) -> u32;
-    fn migrate(
-        &self,
-        value: serde_json::Value
-    ) -> Result<serde_json::Value, ConfigError>;
+```ts
+interface TurnStoppedEvent {
+  version: 1
+  source: 'claude' | 'codex'
+  eventType: 'turnStopped'
+  sessionId: string | null
+  turnId: string | null
+  cwd: string | null
+  timestamp: number
 }
 ```
 
-## 9. 音频模块设计
+IPC 不传输 Prompt、完整回复、transcript、代码、工具参数或 Git 信息。
 
-### 9.1 音频解析
-
-```rust
-pub struct ResolvedAudio {
-    pub path: PathBuf,
-    pub volume: f32,
-    pub fallback_used: bool,
-}
-```
-
-规则：
-
-- 监控关闭：忽略。
-- 默认模式：全局默认音频。
-- 自定义模式且文件有效：自定义音频。
-- 自定义模式但文件无效：全局默认音频。
-- 默认音频无效：安装包内置音频。
-
-### 9.2 自定义音频导入
-
-1. 文件选择器。
-2. 扩展名校验。
-3. 实际解码校验。
-4. 复制到应用数据目录。
-5. 校验复制结果。
-6. 更新配置。
-7. 清理被替换的旧内部文件。
-
-### 9.3 音频播放器
-
-```rust
-pub enum AudioCommand {
-    Play { path: PathBuf, volume: f32 },
-    Stop,
-    Shutdown,
-}
-```
-
-架构：
+## 11. 事件处理流水线
 
 ```text
-Event Processor
-→ mpsc::Sender<AudioCommand>
-→ Audio Worker
-→ rodio OutputStream / Sink
-```
-
-要求：
-
-- 单音频串行播放。
-- 有界队列。
-- 失败后下次可重新初始化。
-- 不阻塞 Tauri 主线程。
-
-## 10. 事件处理设计
-
-### 10.1 标准事件
-
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompletionEvent {
-    pub version: u32,
-    pub source: CliSource,
-    pub event_type: EventType,
-    pub session_id: Option<String>,
-    pub turn_id: Option<String>,
-    pub cwd: Option<String>,
-    pub timestamp: i64,
-}
-```
-
-### 10.2 处理流水线
-
-```text
-IPC 接收
-→ 协议校验
+TCP 接收
+→ 请求大小限制
+→ JSON 和协议版本校验
 → Token 校验
-→ 字段校验
+→ 事件字段校验
+→ 过期事件过滤
 → 全局暂停判断
-→ CLI 开关判断
+→ CLI 独立开关判断
 → 去重
-→ 合并
+→ 1 秒合并窗口
 → 音频解析
-→ 播放队列
+→ 有界播放队列
+→ Renderer 播放
 ```
 
-### 10.3 去重策略
-
-优先键：
+去重优先键：
 
 ```text
 source + sessionId + turnId + eventType
 ```
 
-降级键：
+无可靠 `turnId` 时使用：
 
 ```text
 source + sessionId + eventType + 3秒时间桶
 ```
 
-缓存：
+缓存每 60 秒清理一次，最长保留 5 分钟，最多 1000 条。
 
-```rust
-HashMap<EventKey, Instant>
+## 12. 音频设计
+
+### 12.1 音频解析
+
+```ts
+interface ResolvedAudio {
+  path: string
+  volume: number
+  fallbackUsed: boolean
+}
 ```
 
-每 60 秒清理，保留 5 分钟，最多 1000 条。
+解析顺序：
 
-### 10.4 合并策略
+1. 对应 CLI 监控关闭时忽略。
+2. 默认模式使用全局默认音频。
+3. 自定义模式且文件有效时使用自定义音频。
+4. 自定义音频无效时回退全局默认音频。
+5. 默认音频无效时回退安装包内置音频。
 
-设置 1 秒合并窗口，窗口内多个单轮结束事件只触发一次播放。
+### 12.2 导入规则
 
-## 11. IPC 架构
+1. 使用 Electron `dialog.showOpenDialog` 选择文件。
+2. 校验扩展名、大小和可读性。
+3. 复制到应用数据目录。
+4. Renderer 试听并确认可以解码。
+5. 原子更新配置。
+6. 清理被替换的旧内部文件。
 
-### 11.1 runtime.json
+### 12.3 播放队列
+
+主进程维护有界队列，同一时间只派发一个播放命令。Renderer 使用 Web Audio API 或 HTMLAudioElement 播放，并向主进程回传 `started`、`ended` 或 `failed`。
+
+音频设备变化、格式解码失败和 Renderer 重载均不得导致主进程退出。
+
+## 13. localhost IPC
+
+Electron 主进程动态绑定 `127.0.0.1`，并写入：
 
 ```json
 {
@@ -392,143 +374,133 @@ HashMap<EventKey, Instant>
 
 要求：
 
-- 当前用户权限。
-- 应用退出时删除。
-- 异常退出后下次覆盖。
-- Hook 必须实际连接端口验证可用性。
-
-### 11.2 TCP 服务
-
 - 仅绑定 `127.0.0.1`。
 - 动态端口。
 - 单连接单事件。
-- 请求最大 64 KB。
+- 单请求最大 64 KB。
 - 读写短超时。
-- 非法 Token 直接拒绝。
+- 使用定长比较或安全比较验证 Token。
+- 应用退出时删除 `runtime.json`。
+- Hook Runner 不接受外部指定 host、port 或音频路径。
 
-### 11.3 单实例
+## 14. Hook 管理
 
-重复启动时激活现有窗口，不重复创建 IPC、托盘和音频实例。
+### 14.1 Claude Code
 
-## 12. Hook 管理设计
-
-### 12.1 Claude Hook
-
-- 定位配置。
-- 读取 JSON。
-- 合并 `hooks.Stop`。
-- 创建备份。
-- 识别重复。
+- 定位 Claude Code 官方配置目录。
+- 检测官方 `Stop` Hook 配置。
+- 保留用户已有 Hook。
+- 写入前备份。
+- 合并 Agent Monitor Hook。
+- 识别重复配置。
 - 原子写回。
 
-### 12.2 Codex Hook
+### 14.2 Codex CLI
 
-同样处理配置合并，并额外检测 Hook 信任状态。
+- 定位 Codex CLI 官方配置目录。
+- 检测官方 `Stop` Hook 配置及信任状态。
+- 保留用户已有 Hook。
+- 写入前备份。
+- 合并并验证 Agent Monitor Hook。
 
-### 12.3 Hook 开关策略
+Hook 始终保留。应用中的 Claude/Codex 监控开关只决定是否提醒，避免反复修改 CLI 配置。
 
-Hook 始终保留。Claude/Codex 监控开关仅控制应用是否播放，避免反复修改配置和重新信任。
+## 15. Electron IPC API
 
-## 13. Tauri Command 设计
+Renderer 仅允许调用固定 API：
 
 ```text
-get_app_config
-update_monitor_enabled
-update_audio_mode
-update_default_volume
-import_default_audio
-import_cli_audio
-preview_default_audio
-preview_cli_audio
-restore_builtin_audio
-get_hook_status
-install_hook
-repair_hook
-set_autostart
-open_log_directory
-clear_logs
+config:get
+config:update-monitor
+config:update-audio-mode
+config:update-volume
+audio:import
+audio:preview
+audio:restore-builtin
+hooks:get-status
+hooks:install
+hooks:repair
+autostart:get
+autostart:set
+logs:open-directory
+logs:clear
+app:get-runtime-state
 ```
 
-所有命令必须做参数校验，不接受任意可执行命令或任意系统路径。
+每个 Channel 必须校验来源窗口和参数，不接受任意文件路径、任意 Channel 或任意系统命令。
 
-## 14. 错误模型
+## 16. 窗口、托盘与单实例
 
-```rust
-#[derive(Debug, thiserror::Error)]
-pub enum AppError {
-    #[error("配置文件读取失败")]
-    ConfigRead,
-    #[error("配置文件保存失败")]
-    ConfigWrite,
-    #[error("音频文件格式不受支持")]
-    UnsupportedAudio,
-    #[error("音频解码失败")]
-    AudioDecode,
-    #[error("音频输出设备不可用")]
-    AudioDeviceUnavailable,
-    #[error("Hook 配置格式错误")]
-    InvalidHookConfig,
-    #[error("Hook 配置写入失败")]
-    HookWrite,
-    #[error("IPC 服务不可用")]
-    IpcUnavailable,
-    #[error("请求未授权")]
-    Unauthorized,
-    #[error("参数无效")]
-    InvalidArgument,
+- 使用 `app.requestSingleInstanceLock()` 保证单实例。
+- 第二次启动时激活已有设置窗口。
+- 用户关闭窗口时默认隐藏到托盘。
+- 只有托盘“退出”才设置退出标记、关闭 IPC、删除 runtime 文件并结束进程。
+- 托盘菜单包含监控状态、测试提示音、打开设置、暂停全部监控和退出。
+- `app.setLoginItemSettings()` 管理 Windows/macOS 登录启动。
+- 开机启动参数包含 `--hidden`，启动后不显示设置窗口。
+
+## 17. Electron 安全基线
+
+```ts
+webPreferences: {
+  nodeIntegration: false,
+  contextIsolation: true,
+  sandbox: true,
+  preload: preloadPath
 }
 ```
 
-前端接收结构化错误码，不显示 Rust 堆栈。
+同时要求：
 
-## 15. 日志设计
+- 使用严格 CSP。
+- 禁止导航到外部页面。
+- 禁止新建任意窗口。
+- 禁止 Renderer 直接访问 Node.js。
+- Preload 只暴露白名单 API。
+- 不使用 `remote`。
+- 不记录 Token、Prompt、回复、代码和完整 Hook 输入。
+- 不在 IPC 中接收任意命令、任意音频路径或任意配置对象。
+
+## 18. 启动与退出流程
+
+启动：
+
+```text
+单实例检查
+→ 初始化日志
+→ 加载/恢复配置
+→ 创建隐藏窗口和 Preload Bridge
+→ 初始化托盘
+→ 启动 localhost TCP
+→ 写 runtime.json
+→ 检测 Hook
+→ 根据 --hidden 决定是否显示窗口
+```
+
+退出：
+
+```text
+停止接收 Hook 事件
+→ 清空播放队列
+→ 关闭 TCP 服务
+→ 删除 runtime.json
+→ 刷新日志
+→ 销毁托盘和窗口
+→ 退出
+```
+
+## 19. 日志与错误模型
 
 日志级别：
 
 - ERROR：当前操作失败。
-- WARN：异常回退。
-- INFO：启动、Hook、事件和播放结果。
-- DEBUG：开发版。
+- WARN：发生回退或配置异常。
+- INFO：启动、Hook 状态、事件处理结果和播放结果。
+- DEBUG：仅开发版启用。
 
-禁止记录 Token、完整 Prompt、回复、代码和音频二进制。
+主进程向 Renderer 返回稳定错误码，不返回堆栈、Token、内部绝对路径或敏感内容。
 
-## 16. 启动流程
-
-```text
-初始化日志
-→ 单实例检查
-→ 加载/恢复配置
-→ 初始化托盘
-→ 初始化音频模块
-→ 启动 IPC
-→ 写 runtime.json
-→ 检测 Hook
-→ 决定是否显示窗口
-```
-
-## 17. 退出流程
-
-```text
-停止接收事件
-→ 停止音频线程
-→ 关闭 IPC
-→ 删除 runtime.json
-→ 刷新日志
-→ 退出
-```
-
-## 18. 安全边界
-
-IPC 事件不能：
-
-- 指定音频路径。
-- 指定音量。
-- 指定系统命令。
-- 修改配置。
-- 安装 Hook。
-- 打开任意文件或窗口。
-
-## 19. 可测试性
+## 20. 可测试性
 
 单元测试：
 
@@ -536,31 +508,36 @@ IPC 事件不能：
 - 音频解析。
 - 监控过滤。
 - 去重和合并。
-- Hook JSON 合并。
-- Token 校验。
+- Hook 配置合并。
+- Claude/Codex Hook 输入适配。
+- Token 和协议校验。
 
 集成测试：
 
-- Hook → IPC → Event Processor → Audio Queue。
+- Hook Runner → TCP → Event Processor → Audio Queue。
 - 配置保存和重启恢复。
 - 音频导入与回退。
 - 多 CLI 并发事件。
+- 窗口隐藏后继续播放。
+- Electron 未运行时 Hook Runner 快速退出。
 
-## 20. 架构决策记录
+## 21. 架构决策记录
 
-- **ADR-001**：Tauri 而非 Electron，降低常驻资源和安装体积。
-- **ADR-002**：独立 Hook 程序，避免启动 GUI 和阻塞 CLI。
-- **ADR-003**：MVP 使用 localhost TCP，简化跨平台实现。
-- **ADR-004**：配置使用 JSON，无需数据库。
-- **ADR-005**：Hook 始终保留，减少用户配置冲突。
+- **ADR-001**：桌面框架改为 Electron，降低本机开发环境门槛并统一使用 TypeScript。
+- **ADR-002**：使用 electron-vite 管理 Main、Preload、Renderer 构建。
+- **ADR-003**：使用 Claude Code/Codex CLI 官方 Hook 获取一轮执行停止事件，不监控终端文本。
+- **ADR-004**：Hook 适配逻辑使用 TypeScript/JavaScript，正式发布时打包为独立 Hook Runner。
+- **ADR-005**：MVP 使用 localhost TCP + 随机 Token，保持 Hook 与主进程低耦合。
+- **ADR-006**：使用 Renderer 的 Web Audio 能力播放音频，避免原生 Node 音频模块。
+- **ADR-007**：配置使用 JSON，无需数据库。
+- **ADR-008**：空闲内存目标调整为不超过 250 MB，以发布包实测为准。
 
-## 21. 后续扩展
+## 22. 后续扩展
 
-- Linux。
 - 项目级规则。
 - 工作目录音频映射。
 - 免打扰。
 - 最短任务时长。
-- 最近单轮结束记录。
+- 最近单轮停止记录。
 - Named Pipe/Unix Domain Socket。
 - 自动更新。

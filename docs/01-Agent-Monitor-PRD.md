@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 产品暂定名称 | Agent Monitor |
-| 文档版本 | V1.0 |
-| 文档日期 | 2026年7月28日 |
+| 文档版本 | V1.1 |
+| 文档日期 | 2026年7月30日 |
 | 产品类型 | Windows/macOS 桌面常驻应用 |
 | 产品阶段 | MVP 需求确认 |
-| 核心技术 | Tauri 2、Rust、Vue 3、TypeScript、rodio、Tokio |
+| 核心技术 | Electron、electron-vite、Vue 3、TypeScript、Web Audio API、Node.js |
 | 支持对象 | Claude Code CLI、Codex CLI |
 
 ## 2. 产品概述
@@ -32,11 +32,11 @@ Agent Monitor 是一款运行于 Windows 和 macOS 的轻量桌面常驻应用�
 
 Claude Code 和 Codex CLI 经常被用于代码生成、重构、测试、问题分析及其他耗时任务。
 
-在任务执行期间，用户通常会切换到其他窗口继续工作。由于终端本身不一定能提供统一、明显且可配置的声音提醒，用户需要频繁返回终端确认任务是否完成，造成注意力中断和等待成本。
+在任务执行期间，用户通常会切换到其他窗口继续工作。由于终端本身不一定能提供统一、明显且可配置的声音提醒，用户需要频繁返回终端确认本轮执行是否已经停止并等待继续操作，造成注意力中断和等待成本。
 
 本产品通过 CLI 官方生命周期 Hook 获取结束事件，而不是通过解析终端文本、轮询日志或监控窗口状态来推断任务是否结束。
 
-Claude Code 的 `Stop` Hook 会在主 Agent 完成响应时触发，用户主动中断不会触发该事件；事件还可以提供会话 ID、最终回复、后台任务等信息。
+Claude Code 的 `Stop` Hook 会在主 Agent 一轮执行停止时触发；事件还可以提供会话 ID、最终回复、后台任务等信息。
 
 Codex 的 `Stop` Hook 会提供当前 `turn_id`、`stop_hook_active` 和最终助手消息等字段，适合作为一次 Agent 轮次结束的事件来源。
 
@@ -157,7 +157,7 @@ Claude Code 和 Codex CLI 分别拥有独立的监控开关。关闭后 Hook 可
 - 已检测但未配置。
 - 未检测。
 - Hook 配置异常。
-- Hook 辅助程序不存在。
+- Hook 脚本不存在或不可执行。
 - 配置文件无法读取。
 - 配置文件无法写入。
 
@@ -179,11 +179,11 @@ Claude Code 和 Codex CLI 分别拥有独立的监控开关。关闭后 Hook 可
 
 #### FR-101 Claude 监控开关（P0）
 
-默认开启。关闭后不播放 Claude 完成音频，不影响 Codex，不删除 Hook，不丢失原音频设置。
+默认开启。关闭后不播放 Claude 单轮停止提示音，不影响 Codex，不删除 Hook，不丢失原音频设置。
 
 #### FR-102 Claude 单轮结束事件（P0）
 
-通过 Claude Code `Stop` Hook 接收事件。Hook 辅助程序读取 stdin JSON、提取必要字段、发送标准事件并快速退出。
+通过 Claude Code 官方 `Stop` Hook 接收事件。Hook 脚本由 Claude Code 在一轮执行停止后调用，读取 stdin JSON、提取必要字段、通过 localhost IPC 通知 Electron 主进程并快速退出。
 
 #### FR-103 Claude 后台任务处理（P1）
 
@@ -193,11 +193,11 @@ MVP 收到主 Agent Stop 即视为可提醒事件，不读取完整 transcript�
 
 #### FR-201 Codex 监控开关（P0）
 
-默认开启。关闭后不播放 Codex 完成音频，不影响 Claude，不删除 Hook，不丢失原音频设置。
+默认开启。关闭后不播放 Codex 单轮停止提示音，不影响 Claude，不删除 Hook，不丢失原音频设置。
 
 #### FR-202 Codex 单轮结束事件（P0）
 
-通过 Codex `Stop` Hook 接收事件，提取 `turn_id`、`stop_hook_active` 等必要字段并转换为标准事件。
+通过 Codex CLI 官方 `Stop` Hook 接收事件。Hook 脚本由 Codex CLI 在一轮执行停止后调用，提取 `turn_id`、`stop_hook_active` 等必要字段，转换为标准事件并通过 localhost IPC 通知 Electron 主进程。
 
 #### FR-203 Codex Hook 信任状态（P1）
 
@@ -272,7 +272,7 @@ MVP 收到主 Agent Stop 即视为可提醒事件，不读取完整 transcript�
 
 #### FR-603 非阻塞播放（P0）
 
-不得阻塞 Tauri 主线程、设置界面、Hook 程序或 IPC 接收线程。
+不得阻塞 Electron 主进程、设置界面、Hook 脚本或 IPC 接收循环。
 
 #### FR-604 音频播放队列（P0）
 
@@ -401,16 +401,17 @@ macOS: ~/Library/Application Support/AgentMonitor/config.json
 ### 13.1 最终技术组合
 
 ```text
-桌面框架：Tauri 2
-核心业务：Rust
+桌面框架：Electron
+构建工具：electron-vite
+核心业务：Electron Main Process + TypeScript
 设置界面：Vue 3 + TypeScript
-音频播放：rodio
-异步运行时：Tokio
-配置序列化：serde + serde_json
+音频播放：Web Audio API / HTMLAudioElement
+运行时：Node.js + Chromium
+配置序列化：TypeScript 类型 + JSON Schema/Zod 校验
 IPC：localhost TCP + 随机 Token
-Hook 程序：独立 Rust 二进制
+Hook 程序：独立 TypeScript/JavaScript Hook 脚本，发布时打包为可独立执行的 Hook Runner
 配置存储：本地 JSON
-构建发布：Tauri CLI + GitHub Actions
+构建发布：electron-vite + electron-builder + GitHub Actions
 ```
 
 ### 13.2 标准事件结构
@@ -419,7 +420,7 @@ Hook 程序：独立 Rust 二进制
 {
   "version": 1,
   "source": "claude",
-  "eventType": "turnCompleted",
+  "eventType": "turnStopped",
   "sessionId": "session-123",
   "turnId": null,
   "cwd": "/Users/demo/project",
@@ -463,11 +464,11 @@ MVP 不传输完整 Prompt、助手回复、transcript、代码或 Git 信息。
 
 | 指标 | 目标 |
 |---|---|
-| Hook 辅助程序启动至退出 | 通常不超过 500 毫秒 |
+| Hook 脚本启动至退出 | 通常不超过 500 毫秒 |
 | Hook 事件到音频开始播放 | P95 不超过 1 秒 |
 | 设置修改响应 | 不超过 200 毫秒 |
 | 空闲 CPU 占用 | 接近 0%，目标低于 1% |
-| 空闲内存占用 | 目标不超过 100 MB |
+| 空闲内存占用 | 目标不超过 250 MB，以打包后的发布版本实测为准 |
 | IPC 单事件大小 | 不超过 64 KB |
 | 应用启动时间 | 目标不超过 3 秒 |
 
@@ -531,7 +532,7 @@ MVP 不传输完整 Prompt、助手回复、transcript、代码或 Git 信息。
 
 ### V0.1 技术验证
 
-验证 Claude Hook、Codex Hook、Hook 二进制、IPC、rodio 和双平台构建。
+验证 Claude Hook、Codex Hook、Hook Runner、IPC、Web Audio 和双平台构建。
 
 ### V0.5 内部测试版
 
@@ -557,17 +558,17 @@ MVP 不传输完整 Prompt、助手回复、transcript、代码或 Git 信息。
 
 - CLI Hook 结构可能变化。
 - Stop 只表示一轮结束，不等同于整个项目完成。
-- macOS 需要处理签名、公证和 Sidecar 权限。
+- macOS 需要处理应用及 Hook Runner 的签名、公证和执行权限。
 - Windows 音频设备差异较大。
 - 用户已有复杂 Hook 可能造成配置冲突。
 
 ## 20. 产品决策总结
 
-1. Tauri 2 + Vue 3 + TypeScript。
-2. Rust 实现核心逻辑。
-3. 独立 Rust Hook 辅助程序。
+1. Electron + electron-vite + Vue 3 + TypeScript。
+2. Electron 主进程使用 TypeScript 实现核心逻辑。
+3. 独立 Hook 脚本负责适配 Claude Code、Codex CLI 官方 Hook 事件，发布时打包为可独立执行的 Hook Runner。
 4. Claude/Codex Stop Hook。
-5. rodio 播放短音频。
+5. Web Audio API 播放短音频。
 6. 两类 CLI 默认共用全局默认音频。
 7. 两类 CLI 可分别配置自定义音频和监控开关。
 8. Hook 始终保留，应用侧过滤。
