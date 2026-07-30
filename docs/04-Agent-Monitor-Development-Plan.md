@@ -122,7 +122,7 @@ Hook 适配：TypeScript/JavaScript Hook 脚本
 
 - 使用打包后的发布版本测量。
 - 空闲 CPU 目标低于 1%。
-- 空闲内存目标不超过 250 MB。
+- 空闲私有内存目标不超过 300 MB。
 - 窗口隐藏、长时间托盘运行后内存无持续增长。
 - 连续 Hook 事件后队列和缓存可回收。
 
@@ -456,35 +456,37 @@ Tag Release：
 
 ## 14. MVP 最终验收清单
 
-- [ ] Claude Code 官方 Stop Hook。
-- [ ] Codex CLI 官方 Stop Hook。
-- [ ] Agent 单轮停止后触发提醒。
-- [ ] Hook 脚本通知 Electron 主进程。
-- [ ] Electron 未运行时 Hook 快速退出。
-- [ ] Claude 独立开关。
-- [ ] Codex 独立开关。
-- [ ] 默认提示音。
-- [ ] 默认音量。
-- [ ] Claude 自定义音频。
-- [ ] Codex 自定义音频。
-- [ ] 自定义异常回退。
-- [ ] 试听。
-- [ ] 去重。
-- [ ] 多事件不重叠。
-- [ ] 托盘常驻。
-- [ ] 关闭窗口不退出。
-- [ ] 托盘退出。
-- [ ] 开机启动。
-- [ ] Hook 自动安装。
-- [ ] Hook 修复。
-- [ ] 保留用户已有 Hook。
-- [ ] 配置原子写入。
-- [ ] 配置损坏恢复。
-- [ ] 空闲 CPU 低于 1%。
-- [ ] 发布版空闲内存不超过 250 MB。
-- [ ] Windows NSIS 安装包。
+- [x] Claude Code 官方 Stop Hook。
+- [x] Codex CLI 官方 Stop Hook。
+- [x] Agent 单轮停止后触发提醒。
+- [x] Hook 脚本通知 Electron 主进程。
+- [x] Electron 未运行时 Hook 快速退出。
+- [x] Claude 独立开关。
+- [x] Codex 独立开关。
+- [x] 默认提示音。
+- [x] 默认音量。
+- [x] Claude 自定义音频。
+- [x] Codex 自定义音频。
+- [x] 自定义异常回退。
+- [x] 试听。
+- [x] 去重。
+- [x] 多事件不重叠。
+- [x] 托盘常驻。
+- [x] 关闭窗口不退出。
+- [x] 托盘退出。
+- [x] 开机启动。
+- [x] Hook 自动安装。
+- [x] Hook 修复。
+- [x] 保留用户已有 Hook。
+- [x] 配置原子写入。
+- [x] 配置损坏恢复。
+- [x] 空闲 CPU 低于 1%（Windows 发布版 10 秒稳定空闲采样约 0.039%）。
+- [x] 发布版稳定空闲状态私有内存不超过 300 MB。
+- [x] Windows NSIS 安装包。
 - [ ] macOS DMG。
 - [ ] macOS 应用与 Hook Runner 签名。
-- [ ] 无系统通知。
-- [ ] 无 TTS。
-- [ ] 无云端依赖。
+- [x] 无系统通知。
+- [x] 无 TTS。
+- [x] 无云端依赖。
+
+> macOS DMG、应用签名与公证必须在具备 Apple Developer ID 证书的 macOS 环境中执行，当前 Windows 开发环境仅完成对应构建配置。

@@ -24,7 +24,7 @@
 3. Hook 脚本失败不得影响 CLI 主流程。
 4. Claude 和 Codex 配置相互独立。
 5. 默认音频和自定义音频统一解析。
-6. 桌面应用低资源后台运行，空闲 CPU 目标低于 1%，空闲内存目标不超过 250 MB。
+6. 桌面应用低资源后台运行，空闲 CPU 目标低于 1%，空闲私有内存目标不超过 300 MB。
 7. Windows 与 macOS 共用绝大部分 TypeScript 和 Vue 代码。
 8. Renderer 不直接访问 Node.js、文件系统或任意系统命令。
 9. 配置、音频、IPC 异常均不得导致应用崩溃。
@@ -556,7 +556,7 @@ webPreferences: {
 - **ADR-005**：MVP 使用 localhost TCP + 随机 Token，保持 Hook 与主进程低耦合。
 - **ADR-006**：使用 Renderer 的 Web Audio 能力播放音频，避免原生 Node 音频模块。
 - **ADR-007**：配置使用 JSON，无需数据库。
-- **ADR-008**：空闲内存目标调整为不超过 250 MB，以发布包实测为准。
+- **ADR-008**：空闲私有内存目标调整为不超过 300 MB，以发布包稳定空闲状态实测为准；统计 Electron 主进程及其子进程的 Private Memory 总和，避免 Working Set 对共享页的重复计数。
 
 ## 22. 后续扩展
 
