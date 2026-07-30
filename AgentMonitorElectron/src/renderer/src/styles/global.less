@@ -377,6 +377,20 @@ button {
   color: @amber;
 }
 
+.status-list dd.paused {
+  color: @amber;
+}
+
+.status-list dd.muted {
+  color: @ink-soft;
+}
+
+.status-list dd.paused .status-dot::after,
+.status-list dd.muted .status-dot::after {
+  animation: none;
+  opacity: 0.35;
+}
+
 .status-dot {
   position: relative;
   width: 8px;
@@ -707,6 +721,11 @@ button {
   transform: translateX(19px);
 }
 
+.toggle:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 .radio-option {
   display: flex;
   align-items: center;
@@ -725,6 +744,34 @@ button {
   grid-template-columns: 1fr 1fr 180px 180px;
   align-items: center;
   gap: 12px;
+}
+
+.global-reminder-control {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(111, 85, 232, 0.13);
+  border-radius: @radius-md;
+  background: linear-gradient(100deg, rgba(111, 85, 232, 0.06), rgba(232, 97, 186, 0.04));
+}
+
+.global-reminder-control__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.global-reminder-control__copy strong {
+  color: @ink-strong;
+}
+
+.global-reminder-control__copy span {
+  color: @ink-soft;
+  font-size: 12px;
 }
 
 .check-row {

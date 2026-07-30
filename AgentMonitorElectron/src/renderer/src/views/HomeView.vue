@@ -20,6 +20,11 @@ function hookLabel(source: CliSource): string {
   return status.state === 'configured' ? '已开启' : '待配置'
 }
 
+function monitorTone(source: CliSource): 'warning' | 'muted' | null {
+  if (!props.config.monitors[source].enabled) return 'muted'
+  return props.runtime.hooks[source].state === 'configured' ? null : 'warning'
+}
+
 function formatTime(timestamp?: number): string {
   if (!timestamp) return '尚无记录'
   return new Intl.DateTimeFormat('zh-CN', {
@@ -45,19 +50,19 @@ function sourceName(source: CliSource): string {
       <dl class="status-list">
         <div>
           <dt>应用状态</dt>
-          <dd><span class="status-dot" />{{ config.globalPaused ? '已暂停' : '正在运行' }}</dd>
+          <dd :class="{ paused: config.globalPaused }">
+            <span class="status-dot" />{{ config.globalPaused ? '已暂停' : '正在运行' }}
+          </dd>
         </div>
         <div>
           <dt>Claude 监控</dt>
-          <dd :class="{ warning: hookLabel('claude') === '待配置' }">
+          <dd :class="monitorTone('claude')">
             <span class="status-dot" />{{ hookLabel('claude') }}
           </dd>
         </div>
         <div>
           <dt>Codex 监控</dt>
-          <dd :class="{ warning: hookLabel('codex') === '待配置' }">
-            <span class="status-dot" />{{ hookLabel('codex') }}
-          </dd>
+          <dd :class="monitorTone('codex')"><span class="status-dot" />{{ hookLabel('codex') }}</dd>
         </div>
       </dl>
       <div class="mascot-line">

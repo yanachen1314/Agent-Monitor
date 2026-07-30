@@ -30,6 +30,10 @@ function setMonitor(source: CliSource, enabled: boolean): void {
   void run(`monitor-${source}`, () => api.setMonitorEnabled(source, enabled))
 }
 
+function setGlobalReminder(enabled: boolean): void {
+  void run('global-reminder', () => api.setGlobalPaused(!enabled))
+}
+
 function setMode(source: CliSource, mode: AudioMode): void {
   void run(`mode-${source}`, () => api.setAudioMode(source, mode))
 }
@@ -185,6 +189,21 @@ function hookLabel(source: CliSource): string {
         <UiIcon name="settings" />
         <h2>通用设置</h2>
       </div>
+      <div class="global-reminder-control">
+        <div class="global-reminder-control__copy">
+          <strong>全局提醒</strong>
+          <span>暂停后仍接收单轮停止事件，但不播放提示音</span>
+        </div>
+        <StatusPill :tone="config.globalPaused ? 'warning' : 'success'">
+          {{ config.globalPaused ? '已暂停' : '正在运行' }}
+        </StatusPill>
+        <BaseToggle
+          :model-value="!config.globalPaused"
+          label="全局提醒"
+          :disabled="busy !== null"
+          @update:model-value="setGlobalReminder"
+        />
+      </div>
       <div class="general-grid">
         <label class="check-row">
           <input
@@ -236,7 +255,7 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.1</strong></div>
+        <div><span>版本号</span><strong>v0.1.2</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>
