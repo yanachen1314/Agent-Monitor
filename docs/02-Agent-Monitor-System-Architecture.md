@@ -10,7 +10,7 @@
 | 目标平台 | Windows 10/11、macOS 13+ |
 | 桌面框架 | Electron |
 | 构建工具 | electron-vite、electron-builder |
-| 界面技术 | Vue 3、TypeScript |
+| 界面技术 | Vue 3、TypeScript、Less、CSS Variables |
 | 核心运行时 | Electron Main Process、Node.js |
 | 音频组件 | Web Audio API、HTMLAudioElement |
 | IPC | localhost TCP + 随机 Token |
@@ -157,6 +157,29 @@ App
 
 Renderer 同时承载音频运行时。窗口关闭到托盘时仅隐藏，不销毁；开机静默启动时创建但不显示窗口，因此 Web Audio 仍可接收主进程发来的播放命令。
 
+页面组件使用 Vue 单文件组件自主实现，不引入 Element Plus、Ant Design Vue、Tailwind CSS 等第三方 UI 或原子化样式框架。样式使用 Less 管理，设计 Token 统一定义品牌色、状态色、文字色、背景、边框、间距、圆角、阴影和动效；运行期需要变化的样式值使用 CSS Variables。
+
+建议样式目录：
+
+```text
+src/renderer/src/styles/
+├── tokens.less
+├── themes.less
+├── mixins.less
+├── animations.less
+├── reset.less
+└── global.less
+```
+
+职责：
+
+- `tokens.less`：颜色、字体、间距、圆角、阴影和层级。
+- `themes.less`：主题级变量映射。
+- `mixins.less`：卡片、按钮、输入框和玻璃质感等复用样式。
+- `animations.less`：页面进入、状态切换和控件反馈动画。
+- `reset.less`：浏览器默认样式重置。
+- `global.less`：应用级布局和通用辅助类。
+
 ## 6. 建议目录结构
 
 ```text
@@ -179,6 +202,9 @@ AgentMonitorElectron/
 │   ├── renderer/
 │   │   ├── index.html
 │   │   └── src/
+│   │       ├── components/
+│   │       ├── views/
+│   │       └── styles/
 │   └── hook/
 │       ├── index.ts
 │       ├── adapters/

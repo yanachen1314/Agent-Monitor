@@ -25,7 +25,7 @@
 构建工具：electron-vite
 主进程：Node.js + TypeScript
 Preload：TypeScript + contextBridge
-设置界面：Vue 3 + TypeScript
+设置界面：Vue 3 + TypeScript + Less
 音频播放：Web Audio API / HTMLAudioElement
 Hook 适配：TypeScript/JavaScript Hook 脚本
 发布版 Hook：独立可执行 Hook Runner
@@ -50,6 +50,10 @@ Hook 适配：TypeScript/JavaScript Hook 脚本
 
 - 创建 electron-vite + Vue 3 + TypeScript 项目。
 - 建立 Main、Preload、Renderer、Hook 四层目录。
+- 安装 Less，仅作为样式预处理器，不引入第三方 UI 组件框架。
+- 建立 `tokens.less`、`themes.less`、`mixins.less`、`animations.less`、`reset.less` 和 `global.less`。
+- 使用统一设计 Token 管理色彩、字体、间距、圆角、阴影和动效。
+- 使用 CSS Variables 承载运行期动态样式值。
 - 配置 ESLint、Prettier、Vitest 和 TypeScript。
 - 配置 electron-builder。
 - 配置基础 CI。

@@ -9,7 +9,7 @@
 | 文档日期 | 2026年7月30日 |
 | 产品类型 | Windows/macOS 桌面常驻应用 |
 | 产品阶段 | MVP 需求确认 |
-| 核心技术 | Electron、electron-vite、Vue 3、TypeScript、Web Audio API、Node.js |
+| 核心技术 | Electron、electron-vite、Vue 3、TypeScript、Less、Web Audio API、Node.js |
 | 支持对象 | Claude Code CLI、Codex CLI |
 
 ## 2. 产品概述
@@ -404,7 +404,7 @@ macOS: ~/Library/Application Support/AgentMonitor/config.json
 桌面框架：Electron
 构建工具：electron-vite
 核心业务：Electron Main Process + TypeScript
-设置界面：Vue 3 + TypeScript
+设置界面：Vue 3 + TypeScript + Less
 音频播放：Web Audio API / HTMLAudioElement
 运行时：Node.js + Chromium
 配置序列化：TypeScript 类型 + JSON Schema/Zod 校验
@@ -413,6 +413,8 @@ Hook 程序：独立 TypeScript/JavaScript Hook 脚本，发布时打包为可�
 配置存储：本地 JSON
 构建发布：electron-vite + electron-builder + GitHub Actions
 ```
+
+界面不使用 Element Plus、Ant Design Vue、Tailwind CSS 等第三方 UI 或原子化样式框架。组件使用 Vue 单文件组件自主实现，样式使用 Less 组织，并通过统一的颜色、字体、间距、圆角、阴影和动效 Token 保持软件整体视觉一致。运行期需要动态调整的样式值使用 CSS Variables。
 
 ### 13.2 标准事件结构
 
@@ -564,7 +566,7 @@ MVP 不传输完整 Prompt、助手回复、transcript、代码或 Git 信息。
 
 ## 20. 产品决策总结
 
-1. Electron + electron-vite + Vue 3 + TypeScript。
+1. Electron + electron-vite + Vue 3 + TypeScript + Less。
 2. Electron 主进程使用 TypeScript 实现核心逻辑。
 3. 独立 Hook 脚本负责适配 Claude Code、Codex CLI 官方 Hook 事件，发布时打包为可独立执行的 Hook Runner。
 4. Claude/Codex Stop Hook。
