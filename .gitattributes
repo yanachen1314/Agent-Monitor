@@ -1,0 +1,29 @@
+* text=auto
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+
+# Source and configuration files use stable LF line endings.
+*.cjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.less text eol=lf
+*.md text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Windows command scripts keep native CRLF line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets must never be line-ending normalized.
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.wav binary

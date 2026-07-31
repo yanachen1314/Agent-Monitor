@@ -17,4 +17,3 @@ defineEmits<{ 'update:modelValue': [value: boolean] }>()
     <span class="toggle__thumb" />
   </button>
 </template>
-
