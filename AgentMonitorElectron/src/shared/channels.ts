@@ -24,5 +24,6 @@ export const channels = {
   hooksRepair: 'hooks:repair',
   runtimeGet: 'runtime:get',
   runtimeChanged: 'runtime:changed',
+  linksOpenProject: 'links:open-project',
   logsOpenDirectory: 'logs:open-directory'
 } as const

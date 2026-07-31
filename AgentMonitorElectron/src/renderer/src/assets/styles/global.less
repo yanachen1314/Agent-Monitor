@@ -1024,6 +1024,35 @@ button {
   line-height: 1.6;
 }
 
+.about-panel__actions {
+  display: grid;
+  gap: 10px;
+}
+
+.about-panel__repositories {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.repository-button {
+  .control-base();
+  display: grid;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  place-items: center;
+  padding: 0;
+}
+
+.repository-button img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .about-panel__action {
   min-width: 148px;
   white-space: nowrap;

@@ -12,6 +12,8 @@ import BaseToggle from '../components/BaseToggle.vue'
 import OperationNotice from '../components/OperationNotice.vue'
 import StatusPill from '../components/StatusPill.vue'
 import UiIcon from '../components/UiIcon.vue'
+import giteeIcon from '../assets/images/gitee.png'
+import githubIcon from '../assets/images/github.png'
 
 const props = defineProps<{ config: AppConfig; runtime: RuntimeState }>()
 const emit = defineEmits<{
@@ -388,10 +390,30 @@ function hookLabel(source: CliSource): string {
           </div>
           <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         </div>
-        <button class="outline-button about-panel__action" @click="api.openLogDirectory()">
-          <UiIcon name="folder" />
-          打开日志目录
-        </button>
+        <div class="about-panel__actions">
+          <div class="about-panel__repositories" aria-label="开源仓库">
+            <button
+              class="repository-button"
+              title="打开 GitHub 仓库"
+              aria-label="打开 GitHub 仓库"
+              @click="api.openProjectWebsite('github')"
+            >
+              <img :src="githubIcon" alt="" draggable="false" />
+            </button>
+            <button
+              class="repository-button"
+              title="打开 Gitee 仓库"
+              aria-label="打开 Gitee 仓库"
+              @click="api.openProjectWebsite('gitee')"
+            >
+              <img :src="giteeIcon" alt="" draggable="false" />
+            </button>
+          </div>
+          <button class="outline-button about-panel__action" @click="api.openLogDirectory()">
+            <UiIcon name="folder" />
+            打开日志目录
+          </button>
+        </div>
       </div>
     </article>
 

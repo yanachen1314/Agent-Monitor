@@ -108,6 +108,8 @@ export interface AudioPlayResult {
   message?: string
 }
 
+export type ProjectWebsite = 'github' | 'gitee'
+
 export interface AgentMonitorApi {
   minimizeWindow(): void
   toggleMaximizeWindow(): void
@@ -129,6 +131,7 @@ export interface AgentMonitorApi {
   installHook(source: CliSource): Promise<HookStatus>
   repairHook(source: CliSource): Promise<HookStatus>
   getRuntimeState(): Promise<RuntimeState>
+  openProjectWebsite(target: ProjectWebsite): Promise<void>
   openLogDirectory(): Promise<void>
   onConfigChanged(callback: (config: AppConfig) => void): () => void
   onRuntimeChanged(callback: (state: RuntimeState) => void): () => void

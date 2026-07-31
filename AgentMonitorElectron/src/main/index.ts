@@ -17,6 +17,7 @@ import type {
   AudioPlayResult,
   CliSource,
   IpcResponse,
+  ProjectWebsite,
   RuntimeState,
   TurnStoppedEvent
 } from '../shared/types'
@@ -53,6 +54,10 @@ function startDesktopApplication(): void {
 
   let mainWindow: BrowserWindow | null = null
   let tray: Tray | null = null
+  const projectWebsites: Record<ProjectWebsite, string> = {
+    github: 'https://github.com/yanachen1314/Agent-Monitor',
+    gitee: 'https://gitee.com/yanachen1314/agent-monitor'
+  }
   let quitting = false
   let shutdownStarted = false
   let paths: AppPaths
@@ -337,6 +342,11 @@ function startDesktopApplication(): void {
     ipcMain.handle(channels.runtimeGet, async (event) => {
       assertTrustedFrame(event)
       return getRuntimeState()
+    })
+    ipcMain.handle(channels.linksOpenProject, async (event, target: ProjectWebsite) => {
+      assertTrustedFrame(event)
+      if (target !== 'github' && target !== 'gitee') throw new Error('INVALID_PROJECT_WEBSITE')
+      await shell.openExternal(projectWebsites[target])
     })
     ipcMain.handle(channels.logsOpenDirectory, async (event) => {
       assertTrustedFrame(event)

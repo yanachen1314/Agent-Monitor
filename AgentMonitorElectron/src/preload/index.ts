@@ -6,6 +6,7 @@ import type {
   AudioMode,
   AudioPlayCommand,
   AudioPlayResult,
+  ProjectWebsite,
   RuntimeState
 } from '../shared/types'
 
@@ -32,6 +33,8 @@ const api: AgentMonitorApi = {
   installHook: (source) => ipcRenderer.invoke(channels.hooksInstall, source),
   repairHook: (source) => ipcRenderer.invoke(channels.hooksRepair, source),
   getRuntimeState: () => ipcRenderer.invoke(channels.runtimeGet),
+  openProjectWebsite: (target: ProjectWebsite) =>
+    ipcRenderer.invoke(channels.linksOpenProject, target),
   openLogDirectory: () => ipcRenderer.invoke(channels.logsOpenDirectory),
   onConfigChanged: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, config: AppConfig): void =>
