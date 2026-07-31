@@ -969,67 +969,69 @@ button {
 
 .about-panel__content {
   display: grid;
-  grid-template-columns: 52px auto auto 1fr auto;
+  min-height: 108px;
+  grid-template-columns: 126px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 18px;
+  gap: 24px;
+  padding: 14px 4px 0;
+  border-top: 1px solid rgba(94, 74, 180, 0.1);
 }
 
 .about-panel {
-  min-height: 150px;
-  padding-left: 150px;
+  min-height: 176px;
 }
 
-.about-panel::before {
-  position: absolute;
-  bottom: -10px;
-  left: -18px;
-  width: 210px;
-  height: 140px;
+.about-panel__mascot {
+  width: 126px;
+  height: 94px;
   background: url('../images/catgirl-holding-heart.png') center / contain no-repeat;
-  content: '';
   filter: saturate(0.82);
-  opacity: 0.4;
+  opacity: 0.48;
   pointer-events: none;
   transform: rotate(-2deg);
 }
 
-.about-panel > * {
-  position: relative;
-  z-index: 1;
-}
-
-.mini-mark {
+.about-panel__details {
   display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border-radius: 16px 12px;
-  background: linear-gradient(145deg, @violet, @pink);
-  box-shadow: @shadow-control;
-  color: #fff;
-  font-family: Bahnschrift, sans-serif;
-  font-weight: 800;
+  min-width: 0;
+  gap: 12px;
 }
 
-.about-panel__content > div:not(.mini-mark) {
+.about-panel__meta {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+}
+
+.about-panel__meta > div {
   display: grid;
   gap: 3px;
 }
 
-.about-panel__content span {
+.about-panel__meta span {
   color: @ink-soft;
   font-size: 11px;
 }
 
-.about-panel__content strong {
+.about-panel__meta strong {
   color: @ink-strong;
-  font-size: 13px;
+  font-size: 14px;
 }
 
-.about-panel__content p {
+.about-panel__details p {
   color: @ink-soft;
   font-size: 12px;
   line-height: 1.6;
+}
+
+.about-panel__action {
+  min-width: 148px;
+  white-space: nowrap;
+}
+
+.about-panel__action .ui-icon {
+  width: 17px;
+  height: 17px;
 }
 
 .inline-message {
@@ -1103,10 +1105,11 @@ button {
   }
 
   .about-panel__content {
-    grid-template-columns: 52px auto auto;
+    grid-template-columns: 108px minmax(0, 1fr) auto;
+    gap: 16px;
   }
 
-  .about-panel__content p {
-    grid-column: 1 / -1;
+  .about-panel__mascot {
+    width: 108px;
   }
 }

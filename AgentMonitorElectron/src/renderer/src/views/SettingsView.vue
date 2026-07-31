@@ -380,11 +380,18 @@ function hookLabel(source: CliSource): string {
         <h2>关于</h2>
       </div>
       <div class="about-panel__content">
-        <div class="mini-mark">AM</div>
-        <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.11</strong></div>
-        <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
-        <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
+        <div class="about-panel__mascot" aria-hidden="true" />
+        <div class="about-panel__details">
+          <div class="about-panel__meta">
+            <div><span>应用名称</span><strong>Agent Monitor</strong></div>
+            <div><span>版本号</span><strong>v0.1.11</strong></div>
+          </div>
+          <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
+        </div>
+        <button class="outline-button about-panel__action" @click="api.openLogDirectory()">
+          <UiIcon name="folder" />
+          打开日志目录
+        </button>
       </div>
     </article>
 
