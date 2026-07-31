@@ -9,9 +9,15 @@ release/
 
 # Frontend caches and reports
 .vite/
+.electron-vite/
 .eslintcache
 .stylelintcache
 coverage/
+
+# Electron Builder metadata
+*.blockmap
+builder-debug.yml
+builder-effective-config.yaml
 
 # Rust / Tauri
 target/
@@ -27,6 +33,8 @@ src-tauri/target/
 # Logs
 logs/
 *.log
+*.pid
+*.pid.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -37,6 +45,8 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+.history/
+*.iml
 *.swp
 *.swo
 *~
@@ -44,8 +54,10 @@ pnpm-debug.log*
 # Windows
 Thumbs.db
 Thumbs.db:encryptable
+ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+*.stackdump
 
 # macOS
 .DS_Store
