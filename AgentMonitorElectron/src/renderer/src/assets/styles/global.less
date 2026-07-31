@@ -1,8 +1,8 @@
-@import './tokens.less';
-@import './themes.less';
-@import './mixins.less';
-@import './animations.less';
-@import './reset.less';
+@import 'tokens.less';
+@import 'themes.less';
+@import 'mixins.less';
+@import 'animations.less';
+@import 'reset.less';
 
 body {
   color: @ink;
@@ -155,8 +155,15 @@ button {
   border-radius: 10px;
   background: transparent;
   color: @ink;
-  font-size: 18px;
   transition: background @fast ease;
+}
+
+.window-actions img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  pointer-events: none;
+  transition: filter @fast ease;
 }
 
 .window-actions button:hover {
@@ -166,6 +173,10 @@ button {
 .window-actions button:last-child:hover {
   color: #fff;
   background: @danger;
+}
+
+.window-actions button:last-child:hover img {
+  filter: brightness(0) invert(1);
 }
 
 .app-nav {

@@ -105,6 +105,7 @@ export interface AudioPlayResult {
 export interface AgentMonitorApi {
   minimizeWindow(): void
   toggleMaximizeWindow(): void
+  isWindowMaximized(): Promise<boolean>
   closeWindow(): void
   getConfig(): Promise<AppConfig>
   setMonitorEnabled(source: CliSource, enabled: boolean): Promise<AppConfig>
@@ -123,6 +124,7 @@ export interface AgentMonitorApi {
   openLogDirectory(): Promise<void>
   onConfigChanged(callback: (config: AppConfig) => void): () => void
   onRuntimeChanged(callback: (state: RuntimeState) => void): () => void
+  onWindowMaximizedChanged(callback: (maximized: boolean) => void): () => void
   onAudioCommand(callback: (command: AudioPlayCommand) => void): () => void
   reportAudioResult(result: AudioPlayResult): void
 }

@@ -12,6 +12,7 @@ import type {
 const api: AgentMonitorApi = {
   minimizeWindow: () => ipcRenderer.send(channels.windowMinimize),
   toggleMaximizeWindow: () => ipcRenderer.send(channels.windowToggleMaximize),
+  isWindowMaximized: () => ipcRenderer.invoke(channels.windowGetMaximized),
   closeWindow: () => ipcRenderer.send(channels.windowClose),
   getConfig: () => ipcRenderer.invoke(channels.configGet),
   setMonitorEnabled: (source, enabled) =>
@@ -41,6 +42,12 @@ const api: AgentMonitorApi = {
       callback(state)
     ipcRenderer.on(channels.runtimeChanged, listener)
     return () => ipcRenderer.removeListener(channels.runtimeChanged, listener)
+  },
+  onWindowMaximizedChanged: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, maximized: boolean): void =>
+      callback(maximized)
+    ipcRenderer.on(channels.windowMaximizedChanged, listener)
+    return () => ipcRenderer.removeListener(channels.windowMaximizedChanged, listener)
   },
   onAudioCommand: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, command: AudioPlayCommand): void =>

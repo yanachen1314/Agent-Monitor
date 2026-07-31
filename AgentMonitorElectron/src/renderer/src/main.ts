@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import './styles/global.less'
+import '@renderer/assets/styles/global.less'
 import type { AudioPlayCommand } from '../../shared/types'
 
 let activeAudio: HTMLAudioElement | null = null

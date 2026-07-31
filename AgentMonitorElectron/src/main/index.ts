@@ -142,6 +142,12 @@ function startDesktopApplication(): void {
     window.on('ready-to-show', () => {
       if (!process.argv.includes('--hidden')) window.show()
     })
+    window.on('maximize', () => {
+      window.webContents.send(channels.windowMaximizedChanged, true)
+    })
+    window.on('unmaximize', () => {
+      window.webContents.send(channels.windowMaximizedChanged, false)
+    })
 
     if (is.dev && process.env.ELECTRON_RENDERER_URL) {
       void window.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -217,6 +223,10 @@ function startDesktopApplication(): void {
       } else {
         mainWindow.maximize()
       }
+    })
+    ipcMain.handle(channels.windowGetMaximized, (event) => {
+      assertTrustedFrame(event)
+      return mainWindow?.isMaximized() ?? false
     })
     ipcMain.on(channels.windowClose, (event) => {
       if (mainWindow && event.sender.id === mainWindow.webContents.id) mainWindow.close()

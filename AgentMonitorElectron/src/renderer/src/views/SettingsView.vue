@@ -255,7 +255,7 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.4</strong></div>
+        <div><span>版本号</span><strong>v0.1.5</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>
