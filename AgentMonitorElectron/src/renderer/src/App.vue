@@ -62,6 +62,11 @@ async function refreshRuntime(): Promise<void> {
     runtimeRefreshing.value = false
   }
 }
+
+function toggleWindowMaximize(): void {
+  windowMaximized.value = !windowMaximized.value
+  desktop.toggleMaximizeWindow()
+}
 </script>
 
 <template>
@@ -87,9 +92,22 @@ async function refreshRuntime(): Promise<void> {
         <button
           :title="windowMaximized ? '还原窗口' : '最大化'"
           :aria-label="windowMaximized ? '还原窗口' : '最大化'"
-          @click="desktop.toggleMaximizeWindow()"
+          @click="toggleWindowMaximize"
         >
-          <img :src="windowMaximized ? restoreIcon : maximizeIcon" alt="" draggable="false" />
+          <span class="window-action-icon-stack" aria-hidden="true">
+            <img
+              :class="{ 'is-visible': !windowMaximized }"
+              :src="maximizeIcon"
+              alt=""
+              draggable="false"
+            />
+            <img
+              :class="{ 'is-visible': windowMaximized }"
+              :src="restoreIcon"
+              alt=""
+              draggable="false"
+            />
+          </span>
         </button>
         <button title="关闭" aria-label="关闭" @click="desktop.closeWindow()">
           <img :src="closeIcon" alt="" draggable="false" />
