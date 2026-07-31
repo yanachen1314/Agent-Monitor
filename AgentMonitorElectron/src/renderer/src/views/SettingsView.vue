@@ -7,7 +7,7 @@ import type {
   HookPreview,
   RuntimeState
 } from '../../../shared/types'
-import BaseModal from '../components/BaseModal.vue'
+import BaseModalDialog from '../components/BaseModalDialog.vue'
 import BaseToggle from '../components/BaseToggle.vue'
 import OperationNotice from '../components/OperationNotice.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -382,13 +382,13 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.10</strong></div>
+        <div><span>版本号</span><strong>v0.1.11</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>
     </article>
 
-    <BaseModal
+    <BaseModalDialog
       :open="Boolean(hookPreview)"
       :title="`${hookPreview?.source === 'claude' ? 'Claude Code' : 'Codex CLI'} Hook 配置`"
       @close="hookPreview = null"
@@ -413,6 +413,6 @@ function hookLabel(source: CliSource): string {
           打开 Hook 文件所在目录
         </button>
       </template>
-    </BaseModal>
+    </BaseModalDialog>
   </section>
 </template>

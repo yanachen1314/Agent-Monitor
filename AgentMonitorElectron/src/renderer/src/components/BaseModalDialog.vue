@@ -56,6 +56,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 <style scoped lang="less">
 @import '../assets/styles/tokens.less';
+@import '../assets/styles/mixins.less';
 
 .base-modal__backdrop {
   position: fixed;
@@ -112,6 +113,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
   max-height: calc(100vh - 220px);
   overflow: auto;
   padding: 20px 22px;
+  .themed-scrollbar();
 }
 
 .base-modal__footer {

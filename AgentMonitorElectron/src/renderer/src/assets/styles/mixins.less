@@ -35,3 +35,34 @@
     outline-offset: 2px;
   }
 }
+
+.themed-scrollbar(
+  @thumb: rgba(111, 85, 232, 0.42);
+  @thumb-hover: rgba(111, 85, 232, 0.68)
+) {
+  scrollbar-color: @thumb transparent;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track,
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    min-height: 36px;
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background: @thumb;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: @thumb-hover;
+    background-clip: padding-box;
+  }
+}

@@ -284,8 +284,7 @@ button {
   height: calc(100% - var(--titlebar-height) - var(--navigation-height));
   overflow: auto;
   padding: 24px 30px 32px;
-  scrollbar-color: rgba(111, 85, 232, 0.34) transparent;
-  scrollbar-width: thin;
+  .themed-scrollbar();
 }
 
 .loading-state,
@@ -1016,6 +1015,7 @@ button {
   user-select: text;
   white-space: pre-wrap;
   word-break: break-word;
+  .themed-scrollbar(rgba(142, 120, 239, 0.56); rgba(169, 151, 248, 0.8));
 }
 
 .modal-action-button {
