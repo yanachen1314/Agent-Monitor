@@ -328,6 +328,37 @@ button {
   padding: 22px 24px;
 }
 
+.panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.panel--status::after {
+  position: absolute;
+  right: -24px;
+  bottom: -8px;
+  width: 210px;
+  height: 140px;
+  background: url('../images/catgirl-cheering.png') center / contain no-repeat;
+  content: '';
+  filter: saturate(0.82);
+  opacity: 0.2;
+  pointer-events: none;
+  transition:
+    opacity @normal ease,
+    transform @normal @ease-out;
+  transform: rotate(-3deg);
+}
+
+.panel--status-paused::after {
+  right: -18px;
+  bottom: -10px;
+  background-image: url('../images/catgirl-sleeping.png');
+  filter: saturate(0.7);
+  opacity: 0.17;
+  transform: rotate(0deg);
+}
+
 .panel:nth-child(2) {
   animation-delay: 50ms;
 }

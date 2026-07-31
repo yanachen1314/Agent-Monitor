@@ -41,7 +41,7 @@ function sourceName(source: CliSource): string {
 
 <template>
   <section class="home-grid">
-    <article class="panel panel--status">
+    <article class="panel panel--status" :class="{ 'panel--status-paused': config.globalPaused }">
       <div class="panel__heading">
         <span class="panel__icon panel__icon--blue"><UiIcon name="pulse" /></span>
         <h2>运行概览</h2>
