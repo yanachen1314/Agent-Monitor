@@ -777,57 +777,62 @@ button {
   font-size: 13px;
 }
 
-.radio-option input,
-.check-row input {
+.radio-option input {
   accent-color: @violet;
 }
 
-.general-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 180px 180px;
-  align-items: center;
-  gap: 12px;
+.general-settings-list {
+  border-top: 1px solid rgba(94, 74, 180, 0.1);
 }
 
-.global-reminder-control {
+.general-setting-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto;
+  min-height: 72px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
-  padding: 14px 16px;
-  border: 1px solid rgba(111, 85, 232, 0.13);
-  border-radius: @radius-md;
-  background: linear-gradient(100deg, rgba(111, 85, 232, 0.06), rgba(232, 97, 186, 0.04));
+  gap: 24px;
+  padding: 13px 5px;
+  border-bottom: 1px solid rgba(94, 74, 180, 0.1);
+  transition: background @fast ease;
 }
 
-.global-reminder-control__copy {
+.general-setting-row:hover {
+  background: linear-gradient(90deg, transparent, rgba(111, 85, 232, 0.035));
+}
+
+.general-setting-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 4px;
 }
 
-.global-reminder-control__copy strong {
+.general-setting-copy strong {
   color: @ink-strong;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.global-reminder-control__copy span {
+.general-setting-copy span {
   color: @ink-soft;
   font-size: 12px;
+  line-height: 1.55;
 }
 
-.check-row {
+.general-setting-control {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: @ink;
+  gap: 14px;
 }
 
 .wide-button {
   width: 100%;
   background: rgba(255, 255, 255, 0.74);
   color: @violet-deep;
+}
+
+.general-setting-action {
+  width: 154px;
 }
 
 .wide-button .ui-icon {
@@ -899,8 +904,12 @@ button {
 }
 
 @media (max-width: 940px) {
-  .general-grid {
-    grid-template-columns: 1fr 1fr;
+  .general-setting-row {
+    gap: 16px;
+  }
+
+  .general-setting-action {
+    width: 136px;
   }
 
   .about-panel__content {

@@ -34,6 +34,14 @@ function setGlobalReminder(enabled: boolean): void {
   void run('global-reminder', () => api.setGlobalPaused(!enabled))
 }
 
+function setAutoStart(enabled: boolean): void {
+  void run('auto-start', () => api.setAutoStart(enabled))
+}
+
+function setCloseToTray(enabled: boolean): void {
+  void run('close-to-tray', () => api.setCloseToTray(enabled))
+}
+
 function setMode(source: CliSource, mode: AudioMode): void {
   void run(`mode-${source}`, () => api.setAudioMode(source, mode))
 }
@@ -52,6 +60,14 @@ function redetectHooks(): void {
       new Promise<void>((resolve) => window.setTimeout(resolve, 600))
     ])
     emit('runtime-update', state)
+  })
+}
+
+function repairHooks(): void {
+  void run('repair', async () => {
+    await api.repairHook('claude')
+    await api.repairHook('codex')
+    emit('runtime-refresh')
   })
 }
 
@@ -189,61 +205,82 @@ function hookLabel(source: CliSource): string {
         <UiIcon name="settings" />
         <h2>通用设置</h2>
       </div>
-      <div class="global-reminder-control">
-        <div class="global-reminder-control__copy">
-          <strong>全局提醒</strong>
-          <span>暂停后仍接收单轮停止事件，但不播放提示音</span>
+      <div class="general-settings-list">
+        <div class="general-setting-row">
+          <div class="general-setting-copy">
+            <strong>全局提醒</strong>
+            <span>暂停后仍接收 Agent 单轮停止事件，但不播放提示音</span>
+          </div>
+          <div class="general-setting-control">
+            <StatusPill :tone="config.globalPaused ? 'warning' : 'success'">
+              {{ config.globalPaused ? '已暂停' : '正在运行' }}
+            </StatusPill>
+            <BaseToggle
+              :model-value="!config.globalPaused"
+              label="全局提醒"
+              :disabled="busy !== null"
+              @update:model-value="setGlobalReminder"
+            />
+          </div>
         </div>
-        <StatusPill :tone="config.globalPaused ? 'warning' : 'success'">
-          {{ config.globalPaused ? '已暂停' : '正在运行' }}
-        </StatusPill>
-        <BaseToggle
-          :model-value="!config.globalPaused"
-          label="全局提醒"
-          :disabled="busy !== null"
-          @update:model-value="setGlobalReminder"
-        />
-      </div>
-      <div class="general-grid">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            :checked="config.autoStart"
-            @change="api.setAutoStart(($event.target as HTMLInputElement).checked)"
+
+        <div class="general-setting-row">
+          <div class="general-setting-copy">
+            <strong>开机自动启动</strong>
+            <span>登录 Windows 后自动启动 Agent Monitor 并在后台监听</span>
+          </div>
+          <BaseToggle
+            :model-value="config.autoStart"
+            label="开机自动启动"
+            :disabled="busy !== null"
+            @update:model-value="setAutoStart"
           />
-          开机自动启动
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            :checked="config.closeToTray"
-            @change="api.setCloseToTray(($event.target as HTMLInputElement).checked)"
+        </div>
+
+        <div class="general-setting-row">
+          <div class="general-setting-copy">
+            <strong>关闭窗口后驻留托盘</strong>
+            <span>关闭主窗口时继续在后台运行，可从系统托盘重新打开</span>
+          </div>
+          <BaseToggle
+            :model-value="config.closeToTray"
+            label="关闭窗口后驻留托盘"
+            :disabled="busy !== null"
+            @update:model-value="setCloseToTray"
           />
-          关闭窗口后驻留托盘
-        </label>
-        <button
-          class="wide-button"
-          :class="{ 'is-loading': busy === 'detect-hooks' }"
-          :disabled="busy !== null"
-          title="重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态"
-          @click="redetectHooks"
-        >
-          <UiIcon name="refresh" />
-          {{ busy === 'detect-hooks' ? '检测中…' : '重新检测 Hook' }}
-        </button>
-        <button
-          class="wide-button"
-          :disabled="busy !== null"
-          @click="
-            run('repair', async () => {
-              await api.repairHook('claude')
-              await api.repairHook('codex')
-              emit('runtime-refresh')
-            })
-          "
-        >
-          <UiIcon name="wrench" />修复 Hook
-        </button>
+        </div>
+
+        <div class="general-setting-row">
+          <div class="general-setting-copy">
+            <strong>重新检测 Hook</strong>
+            <span>重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态</span>
+          </div>
+          <button
+            class="wide-button general-setting-action"
+            :class="{ 'is-loading': busy === 'detect-hooks' }"
+            :disabled="busy !== null"
+            title="重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态"
+            @click="redetectHooks"
+          >
+            <UiIcon name="refresh" />
+            {{ busy === 'detect-hooks' ? '检测中…' : '立即检测' }}
+          </button>
+        </div>
+
+        <div class="general-setting-row">
+          <div class="general-setting-copy">
+            <strong>修复 Hook</strong>
+            <span>重新写入 Agent Monitor 的 Stop Hook，并保留已有 Hook 配置</span>
+          </div>
+          <button
+            class="wide-button general-setting-action"
+            :disabled="busy !== null"
+            @click="repairHooks"
+          >
+            <UiIcon name="wrench" />
+            {{ busy === 'repair' ? '修复中…' : '立即修复' }}
+          </button>
+        </div>
       </div>
     </article>
 
@@ -255,7 +292,7 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.6</strong></div>
+        <div><span>版本号</span><strong>v0.1.7</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>
