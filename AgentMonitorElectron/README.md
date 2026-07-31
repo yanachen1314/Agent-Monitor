@@ -42,5 +42,3 @@ npm run build:win
 - Hook 只连接 `127.0.0.1`，使用当前进程随机 Token。
 - 不记录或传输 Prompt、完整回复、transcript 和用户代码。
 - Hook 失败始终正常退出，不影响 Claude Code 或 Codex CLI。
-
-完整产品与架构说明见仓库根目录的 `docs`。
