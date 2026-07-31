@@ -1,4 +1,4 @@
-import { extname, join } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import {
   app,
@@ -311,6 +311,17 @@ function startDesktopApplication(): void {
       assertTrustedFrame(event)
       return hookManager.getStatuses()
     })
+    ipcMain.handle(channels.hooksGetPreview, async (event, source: CliSource) => {
+      assertTrustedFrame(event)
+      return hookManager.getPreview(assertCliSource(source))
+    })
+    ipcMain.handle(channels.hooksOpenDirectory, async (event, source: CliSource) => {
+      assertTrustedFrame(event)
+      const result = await shell.openPath(
+        dirname(hookManager.getConfigPath(assertCliSource(source)))
+      )
+      if (result) throw new Error(result)
+    })
     ipcMain.handle(channels.hooksInstall, async (event, source: CliSource) => {
       assertTrustedFrame(event)
       const status = await hookManager.install(source)
@@ -396,4 +407,9 @@ function parseHookSource(args: string[]): CliSource | null {
   const argument = args.find((value) => value.startsWith('--agent-monitor-hook='))
   const source = argument?.split('=')[1]
   return source === 'claude' || source === 'codex' ? source : null
+}
+
+function assertCliSource(value: unknown): CliSource {
+  if (value === 'claude' || value === 'codex') return value
+  throw new Error('INVALID_CLI_SOURCE')
 }

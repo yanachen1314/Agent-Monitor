@@ -2,8 +2,9 @@ import { app } from 'electron'
 import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
-import type { CliSource, HookStatus } from '../../shared/types'
+import type { CliSource, HookPreview, HookStatus } from '../../shared/types'
 import type { AppPaths } from '../paths'
+import { extractAgentMonitorStopHooks } from './filter'
 
 interface HookEntry {
   matcher?: string
@@ -94,6 +95,18 @@ export class HookManager {
 
   async repair(source: CliSource): Promise<HookStatus> {
     return this.install(source)
+  }
+
+  async getPreview(source: CliSource): Promise<HookPreview> {
+    const configPath = this.getConfigPath(source)
+    const document: unknown = JSON.parse(await readFile(configPath, 'utf8'))
+    const entries = extractAgentMonitorStopHooks(document, source)
+    if (entries.length === 0) throw new Error('HOOK_NOT_CONFIGURED')
+    return {
+      source,
+      configPath,
+      content: JSON.stringify({ hooks: { Stop: entries } }, null, 2)
+    }
   }
 
   getConfigPath(source: CliSource): string {

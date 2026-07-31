@@ -18,6 +18,8 @@ export const channels = {
   audioPlay: 'audio:play',
   audioResult: 'audio:result',
   hooksGetStatus: 'hooks:get-status',
+  hooksGetPreview: 'hooks:get-preview',
+  hooksOpenDirectory: 'hooks:open-directory',
   hooksInstall: 'hooks:install',
   hooksRepair: 'hooks:repair',
   runtimeGet: 'runtime:get',

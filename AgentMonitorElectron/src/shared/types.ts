@@ -70,6 +70,12 @@ export interface HookStatus {
   message: string
 }
 
+export interface HookPreview {
+  source: CliSource
+  configPath: string
+  content: string
+}
+
 export interface RecentActivity {
   id: string
   source: CliSource
@@ -118,6 +124,8 @@ export interface AgentMonitorApi {
   previewAudio(target: 'default' | CliSource): Promise<void>
   restoreBuiltinAudio(): Promise<AppConfig>
   getHookStatus(): Promise<Record<CliSource, HookStatus>>
+  getHookPreview(source: CliSource): Promise<HookPreview>
+  openHookDirectory(source: CliSource): Promise<void>
   installHook(source: CliSource): Promise<HookStatus>
   repairHook(source: CliSource): Promise<HookStatus>
   getRuntimeState(): Promise<RuntimeState>

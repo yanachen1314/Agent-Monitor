@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import type { AppConfig, AudioMode, CliSource, RuntimeState } from '../../../shared/types'
+import { computed, reactive, ref, watch } from 'vue'
+import type {
+  AppConfig,
+  AudioMode,
+  CliSource,
+  HookPreview,
+  RuntimeState
+} from '../../../shared/types'
+import BaseModal from '../components/BaseModal.vue'
 import BaseToggle from '../components/BaseToggle.vue'
 import OperationNotice from '../components/OperationNotice.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -14,10 +21,23 @@ const emit = defineEmits<{
 const api = window.agentMonitor
 const busy = reactive(new Set<string>())
 const message = ref('')
+const draftVolume = ref(props.config.defaultAudio.volume)
+const hookPreview = ref<HookPreview | null>(null)
 const operationNotice = ref<{
   tone: 'success' | 'warning'
   text: string
 } | null>(null)
+
+const volumeStyle = computed<Record<string, string>>(() => ({
+  '--range-progress': `${Math.round(draftVolume.value * 100)}%`
+}))
+
+watch(
+  () => props.config.defaultAudio.volume,
+  (volume) => {
+    draftVolume.value = volume
+  }
+)
 
 async function run(key: string, action: () => Promise<unknown>): Promise<void> {
   if (busy.has(key)) return
@@ -60,6 +80,14 @@ function setMode(source: CliSource, mode: AudioMode): void {
   void run(`mode-${source}`, () => api.setAudioMode(source, mode))
 }
 
+function updateDraftVolume(event: Event): void {
+  draftVolume.value = Number((event.target as HTMLInputElement).value)
+}
+
+function saveVolume(): void {
+  void run('volume', () => api.setDefaultVolume(draftVolume.value))
+}
+
 function installHook(source: CliSource): void {
   void run(`hook-${source}`, async () => {
     await api.installHook(source)
@@ -94,6 +122,18 @@ function repairHooks(): void {
     await api.repairHook('codex')
     emit('runtime-refresh')
   })
+}
+
+function openHookPreview(source: CliSource): void {
+  void run(`preview-hook-${source}`, async () => {
+    hookPreview.value = await api.getHookPreview(source)
+  })
+}
+
+function openHookDirectory(): void {
+  const source = hookPreview.value?.source
+  if (!source) return
+  void run(`open-hook-directory-${source}`, () => api.openHookDirectory(source))
 }
 
 function audioName(target: 'default' | CliSource): string {
@@ -149,19 +189,27 @@ function hookLabel(source: CliSource): string {
           恢复默认
         </button>
       </div>
-      <div class="setting-row">
+      <div class="setting-row setting-row--volume">
         <label for="default-volume">音量</label>
-        <input
-          id="default-volume"
-          class="range"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          :value="config.defaultAudio.volume"
-          @change="api.setDefaultVolume(Number(($event.target as HTMLInputElement).value))"
-        />
-        <strong class="volume-value">{{ Math.round(config.defaultAudio.volume * 100) }}%</strong>
+        <div class="volume-control">
+          <UiIcon name="music" />
+          <input
+            id="default-volume"
+            class="range"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            :value="draftVolume"
+            :style="volumeStyle"
+            :disabled="isBusy('volume')"
+            @input="updateDraftVolume"
+            @change="saveVolume"
+          />
+        </div>
+        <output class="volume-value" for="default-volume">
+          {{ Math.round(draftVolume * 100) }}%
+        </output>
       </div>
 
       <template v-for="source in ['claude', 'codex'] as const" :key="source">
@@ -172,6 +220,14 @@ function hookLabel(source: CliSource): string {
           }}</span>
           <strong>{{ source === 'claude' ? 'Claude Code' : 'Codex CLI' }} 提醒</strong>
           <StatusPill :tone="hookTone(source)">{{ hookLabel(source) }}</StatusPill>
+          <button
+            v-if="runtime.hooks[source].state === 'configured'"
+            class="mini-button hook-preview-button"
+            :disabled="isBusy(`preview-hook-${source}`)"
+            @click="openHookPreview(source)"
+          >
+            {{ isBusy(`preview-hook-${source}`) ? '读取中…' : '预览' }}
+          </button>
           <button
             v-if="runtime.hooks[source].state !== 'configured'"
             class="mini-button"
@@ -326,10 +382,37 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.9</strong></div>
+        <div><span>版本号</span><strong>v0.1.10</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>
     </article>
+
+    <BaseModal
+      :open="Boolean(hookPreview)"
+      :title="`${hookPreview?.source === 'claude' ? 'Claude Code' : 'Codex CLI'} Hook 配置`"
+      @close="hookPreview = null"
+    >
+      <template v-if="hookPreview">
+        <p class="hook-preview-description">
+          仅显示 Agent Monitor 写入的 Stop Hook，不包含配置文件中的其他 Hook。
+        </p>
+        <div class="hook-preview-path">
+          <span>配置文件</span>
+          <code>{{ hookPreview.configPath }}</code>
+        </div>
+        <pre class="hook-preview-code"><code>{{ hookPreview.content }}</code></pre>
+      </template>
+      <template #footer>
+        <button class="outline-button modal-action-button" @click="hookPreview = null">关闭</button>
+        <button
+          class="soft-button modal-action-button"
+          :disabled="hookPreview ? isBusy(`open-hook-directory-${hookPreview.source}`) : false"
+          @click="openHookDirectory"
+        >
+          打开 Hook 文件所在目录
+        </button>
+      </template>
+    </BaseModal>
   </section>
 </template>
