@@ -1,6 +1,7 @@
 * text=auto
 /.gitattributes text eol=lf
 /.gitignore text eol=lf
+/LICENSE text eol=lf
 
 # Source and configuration files use stable LF line endings.
 *.cjs text eol=lf

@@ -30,6 +30,9 @@ src-tauri/target/
 .env.*
 !.env.example
 
+# Private development documentation
+docs/
+
 # Logs
 logs/
 *.log
