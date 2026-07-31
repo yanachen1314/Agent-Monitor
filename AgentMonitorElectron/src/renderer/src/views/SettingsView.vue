@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import type { AppConfig, AudioMode, CliSource, RuntimeState } from '../../../shared/types'
 import BaseToggle from '../components/BaseToggle.vue'
+import OperationNotice from '../components/OperationNotice.vue'
 import StatusPill from '../components/StatusPill.vue'
 import UiIcon from '../components/UiIcon.vue'
 
@@ -11,19 +12,32 @@ const emit = defineEmits<{
   'runtime-update': [state: RuntimeState]
 }>()
 const api = window.agentMonitor
-const busy = ref<string | null>(null)
+const busy = reactive(new Set<string>())
 const message = ref('')
+const operationNotice = ref<{
+  tone: 'success' | 'warning'
+  text: string
+} | null>(null)
 
 async function run(key: string, action: () => Promise<unknown>): Promise<void> {
-  busy.value = key
+  if (busy.has(key)) return
+  busy.add(key)
   message.value = ''
   try {
     await action()
   } catch (error) {
     message.value = error instanceof Error ? error.message : '操作失败'
   } finally {
-    busy.value = null
+    busy.delete(key)
   }
+}
+
+function isBusy(key: string): boolean {
+  return busy.has(key)
+}
+
+function showOperationNotice(tone: 'success' | 'warning', text: string): void {
+  operationNotice.value = { tone, text }
 }
 
 function setMonitor(source: CliSource, enabled: boolean): void {
@@ -60,6 +74,17 @@ function redetectHooks(): void {
       new Promise<void>((resolve) => window.setTimeout(resolve, 600))
     ])
     emit('runtime-update', state)
+    const issues = (['claude', 'codex'] as const)
+      .filter((source) => state.hooks[source].state !== 'configured')
+      .map((source) => {
+        const name = source === 'claude' ? 'Claude Code' : 'Codex CLI'
+        return state.hooks[source].state === 'invalid' ? `${name} 配置异常` : `${name} 待配置`
+      })
+    if (issues.length === 0) {
+      showOperationNotice('success', '检测完成：Claude Code 与 Codex CLI Hook 均已配置')
+    } else {
+      showOperationNotice('warning', `检测完成：${issues.join('，')}`)
+    }
   })
 }
 
@@ -91,6 +116,7 @@ function hookLabel(source: CliSource): string {
 
 <template>
   <section class="settings-stack">
+    <OperationNotice :notice="operationNotice" @dismiss="operationNotice = null" />
     <p v-if="message" class="inline-message">{{ message }}</p>
 
     <article class="settings-panel">
@@ -103,18 +129,21 @@ function hookLabel(source: CliSource): string {
         <div class="file-field">{{ audioName('default') }}</div>
         <button
           class="outline-button"
+          :disabled="isBusy('import-default')"
           @click="run('import-default', () => api.importAudio('default'))"
         >
           选择音频
         </button>
         <button
           class="outline-button"
+          :disabled="isBusy('preview-default')"
           @click="run('preview-default', () => api.previewAudio('default'))"
         >
           试听
         </button>
         <button
           class="outline-button outline-button--pink"
+          :disabled="isBusy('restore')"
           @click="run('restore', () => api.restoreBuiltinAudio())"
         >
           恢复默认
@@ -146,7 +175,7 @@ function hookLabel(source: CliSource): string {
           <button
             v-if="runtime.hooks[source].state !== 'configured'"
             class="mini-button"
-            :disabled="busy === `hook-${source}`"
+            :disabled="isBusy(`hook-${source}`)"
             @click="installHook(source)"
           >
             配置 Hook
@@ -157,6 +186,7 @@ function hookLabel(source: CliSource): string {
           <BaseToggle
             :model-value="config.monitors[source].enabled"
             :label="`开启 ${source} 监控`"
+            :disabled="isBusy(`monitor-${source}`)"
             @update:model-value="setMonitor(source, $event)"
           />
           <label class="radio-option">
@@ -164,6 +194,7 @@ function hookLabel(source: CliSource): string {
               type="radio"
               :name="`${source}-mode`"
               :checked="config.monitors[source].audioMode === 'default'"
+              :disabled="isBusy(`mode-${source}`)"
               @change="setMode(source, 'default')"
             />
             使用默认音频
@@ -173,6 +204,7 @@ function hookLabel(source: CliSource): string {
               type="radio"
               :name="`${source}-mode`"
               :checked="config.monitors[source].audioMode === 'custom'"
+              :disabled="isBusy(`mode-${source}`)"
               @change="setMode(source, 'custom')"
             />
             使用自定义音频
@@ -186,12 +218,14 @@ function hookLabel(source: CliSource): string {
           <div class="file-field">{{ audioName(source) }}</div>
           <button
             class="outline-button"
+            :disabled="isBusy(`import-${source}`)"
             @click="run(`import-${source}`, () => api.importAudio(source))"
           >
             选择音频
           </button>
           <button
             class="outline-button"
+            :disabled="isBusy(`preview-${source}`)"
             @click="run(`preview-${source}`, () => api.previewAudio(source))"
           >
             试听
@@ -218,7 +252,7 @@ function hookLabel(source: CliSource): string {
             <BaseToggle
               :model-value="!config.globalPaused"
               label="全局提醒"
-              :disabled="busy !== null"
+              :disabled="isBusy('global-reminder')"
               @update:model-value="setGlobalReminder"
             />
           </div>
@@ -232,7 +266,7 @@ function hookLabel(source: CliSource): string {
           <BaseToggle
             :model-value="config.autoStart"
             label="开机自动启动"
-            :disabled="busy !== null"
+            :disabled="isBusy('auto-start')"
             @update:model-value="setAutoStart"
           />
         </div>
@@ -245,7 +279,7 @@ function hookLabel(source: CliSource): string {
           <BaseToggle
             :model-value="config.closeToTray"
             label="关闭窗口后驻留托盘"
-            :disabled="busy !== null"
+            :disabled="isBusy('close-to-tray')"
             @update:model-value="setCloseToTray"
           />
         </div>
@@ -257,13 +291,13 @@ function hookLabel(source: CliSource): string {
           </div>
           <button
             class="wide-button general-setting-action"
-            :class="{ 'is-loading': busy === 'detect-hooks' }"
-            :disabled="busy !== null"
+            :class="{ 'is-loading': isBusy('detect-hooks') }"
+            :disabled="isBusy('detect-hooks')"
             title="重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态"
             @click="redetectHooks"
           >
             <UiIcon name="refresh" />
-            {{ busy === 'detect-hooks' ? '检测中…' : '立即检测' }}
+            {{ isBusy('detect-hooks') ? '检测中…' : '立即检测' }}
           </button>
         </div>
 
@@ -274,11 +308,11 @@ function hookLabel(source: CliSource): string {
           </div>
           <button
             class="wide-button general-setting-action"
-            :disabled="busy !== null"
+            :disabled="isBusy('repair')"
             @click="repairHooks"
           >
             <UiIcon name="wrench" />
-            {{ busy === 'repair' ? '修复中…' : '立即修复' }}
+            {{ isBusy('repair') ? '修复中…' : '立即修复' }}
           </button>
         </div>
       </div>
@@ -292,7 +326,7 @@ function hookLabel(source: CliSource): string {
       <div class="about-panel__content">
         <div class="mini-mark">AM</div>
         <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-        <div><span>版本号</span><strong>v0.1.7</strong></div>
+        <div><span>版本号</span><strong>v0.1.9</strong></div>
         <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         <button class="text-button" @click="api.openLogDirectory()">打开日志目录</button>
       </div>
