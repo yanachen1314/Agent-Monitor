@@ -342,7 +342,7 @@ button {
   background: url('../images/catgirl-cheering.png') center / contain no-repeat;
   content: '';
   filter: saturate(0.82);
-  opacity: 0.2;
+  opacity: 0.48;
   pointer-events: none;
   transition:
     opacity @normal ease,
@@ -355,7 +355,7 @@ button {
   bottom: -10px;
   background-image: url('../images/catgirl-sleeping.png');
   filter: saturate(0.7);
-  opacity: 0.17;
+  opacity: 0.42;
   transform: rotate(0deg);
 }
 
@@ -646,11 +646,27 @@ button {
 }
 
 .empty-activity {
+  position: relative;
   display: grid;
   height: 145px;
+  overflow: hidden;
   place-items: center;
   color: @ink-soft;
   font-size: 13px;
+}
+
+.empty-activity::before {
+  position: absolute;
+  right: -34px;
+  bottom: -18px;
+  width: 220px;
+  height: 147px;
+  background: url('../images/catgirl-thinking.png') center / contain no-repeat;
+  content: '';
+  filter: saturate(0.8);
+  opacity: 0.4;
+  pointer-events: none;
+  transform: rotate(2deg);
 }
 
 .text-button {
@@ -956,6 +972,30 @@ button {
   grid-template-columns: 52px auto auto 1fr auto;
   align-items: center;
   gap: 18px;
+}
+
+.about-panel {
+  min-height: 150px;
+  padding-left: 150px;
+}
+
+.about-panel::before {
+  position: absolute;
+  bottom: -10px;
+  left: -18px;
+  width: 210px;
+  height: 140px;
+  background: url('../images/catgirl-holding-heart.png') center / contain no-repeat;
+  content: '';
+  filter: saturate(0.82);
+  opacity: 0.4;
+  pointer-events: none;
+  transform: rotate(-2deg);
+}
+
+.about-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .mini-mark {
