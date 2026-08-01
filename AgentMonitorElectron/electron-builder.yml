@@ -1,6 +1,9 @@
 appId: com.agentmonitor.desktop
 productName: Agent Monitor
 asar: true
+electronLanguages:
+  - en-US
+  - zh-CN
 directories:
   buildResources: resources
   output: release/${version}
