@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { writeFile, rename, rm } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { createServer, type Server, type Socket } from 'node:net'
 import type { IpcResponse, IpcRuntime, TurnStoppedEvent } from '../../shared/types'
 import type { AppPaths } from '../paths'
@@ -10,6 +10,8 @@ const MAX_REQUEST_BYTES = 64 * 1024
 export class LocalIpcServer {
   private server: Server | null = null
   private runtime: IpcRuntime | null = null
+  private filePoller: NodeJS.Timeout | null = null
+  private drainingInbox = false
 
   constructor(
     private readonly paths: AppPaths,
@@ -19,23 +21,35 @@ export class LocalIpcServer {
   async start(): Promise<IpcRuntime> {
     if (this.server && this.runtime) return this.runtime
     const token = randomBytes(32).toString('base64url')
+    if (process.platform === 'win32') {
+      await mkdir(this.paths.inboxDir, { recursive: true })
+      this.runtime = {
+        version: 1,
+        transport: 'file',
+        inboxDir: this.paths.inboxDir,
+        token,
+        pid: process.pid,
+        startedAt: Date.now()
+      }
+      await this.writeRuntimeFile(this.runtime)
+      this.filePoller = setInterval(() => {
+        void this.drainInbox(token)
+        const now = new Date()
+        void utimes(this.paths.runtimeFile, now, now).catch(() => undefined)
+      }, 100)
+      void this.drainInbox(token)
+      return this.runtime
+    }
+
     const server = createServer((socket) => this.handleConnection(socket, token))
     server.maxConnections = 32
 
-    const pipeName = `\\\\.\\pipe\\agent-monitor-${randomBytes(16).toString('hex')}`
-    const useNamedPipe = process.platform === 'win32'
-
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject)
-      const onListening = (): void => {
+      server.listen(0, '127.0.0.1', () => {
         server.off('error', reject)
         resolve()
-      }
-      if (useNamedPipe) {
-        server.listen(pipeName, onListening)
-      } else {
-        server.listen(0, '127.0.0.1', onListening)
-      }
+      })
     })
 
     const address = server.address()
@@ -46,15 +60,16 @@ export class LocalIpcServer {
 
     this.server = server
     const common = { version: 1 as const, token, pid: process.pid, startedAt: Date.now() }
-    this.runtime =
-      typeof address === 'string'
-        ? { ...common, transport: 'pipe', pipeName: address }
-        : {
-            ...common,
-            transport: 'tcp',
-            host: '127.0.0.1',
-            port: address.port
-          }
+    if (typeof address === 'string') {
+      server.close()
+      throw new Error('IPC_ADDRESS_UNAVAILABLE')
+    }
+    this.runtime = {
+      ...common,
+      transport: 'tcp',
+      host: '127.0.0.1',
+      port: address.port
+    }
     await this.writeRuntimeFile(this.runtime)
     return this.runtime
   }
@@ -67,10 +82,37 @@ export class LocalIpcServer {
     const server = this.server
     this.server = null
     this.runtime = null
+    if (this.filePoller) clearInterval(this.filePoller)
+    this.filePoller = null
     if (server) {
       await new Promise<void>((resolve) => server.close(() => resolve()))
     }
     await rm(this.paths.runtimeFile, { force: true }).catch(() => undefined)
+  }
+
+  private async drainInbox(token: string): Promise<void> {
+    if (this.drainingInbox) return
+    this.drainingInbox = true
+    try {
+      const entries = await readdir(this.paths.inboxDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) continue
+        const path = `${this.paths.inboxDir}\\${entry.name}`
+        try {
+          const fileStats = await stat(path)
+          if (fileStats.size > MAX_REQUEST_BYTES) continue
+          const parsed = ipcRequestSchema.safeParse(JSON.parse(await readFile(path, 'utf8')))
+          if (!parsed.success || !this.tokenMatches(token, parsed.data.token)) continue
+          await this.onEvent(parsed.data.event as TurnStoppedEvent)
+        } catch {
+          // 无效或写入未完成的事件由本轮忽略并清理。
+        } finally {
+          await rm(path, { force: true }).catch(() => undefined)
+        }
+      }
+    } finally {
+      this.drainingInbox = false
+    }
   }
 
   private handleConnection(socket: Socket, token: string): void {

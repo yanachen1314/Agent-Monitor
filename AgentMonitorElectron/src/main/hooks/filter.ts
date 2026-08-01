@@ -31,7 +31,6 @@ export function extractAgentMonitorStopHooks(
   const stopEntries = (document as HooksDocumentRecord | null)?.hooks?.Stop
   if (!Array.isArray(stopEntries)) return []
 
-  const marker = `--agent-monitor-hook=${source}`
   return stopEntries.flatMap((candidate) => {
     if (!candidate || typeof candidate !== 'object') return []
     const entry = candidate as HookEntryRecord
@@ -40,7 +39,9 @@ export function extractAgentMonitorStopHooks(
     const ownHooks = entry.hooks.flatMap((hookCandidate) => {
       if (!hookCandidate || typeof hookCandidate !== 'object') return []
       const hook = hookCandidate as HookCommandRecord
-      if (typeof hook.command !== 'string' || !hook.command.includes(marker)) return []
+      if (typeof hook.command !== 'string' || !isAgentMonitorHookCommand(hook.command, source)) {
+        return []
+      }
       return [{ type: 'command' as const, command: hook.command }]
     })
     if (ownHooks.length === 0) return []
@@ -52,4 +53,16 @@ export function extractAgentMonitorStopHooks(
       }
     ]
   })
+}
+
+export function isAgentMonitorHookCommand(command: string, source: CliSource): boolean {
+  return (
+    command.includes(`--agent-monitor-hook=${source}`) ||
+    (command.toLowerCase().includes('agentmonitorhook.exe') &&
+      new RegExp(`(?:^|\\s)${source}(?:\\s|$)`, 'i').test(command)) ||
+    (command.toLowerCase().includes('agent-monitor-hook.cmd') &&
+      new RegExp(`(?:^|\\s)${source}(?:\\s|$)`, 'i').test(command)) ||
+    (command.toLowerCase().includes('agent-monitor-hook.ps1') &&
+      new RegExp(`(?:^|\\s)-Source\\s+${source}(?:\\s|$)`, 'i').test(command))
+  )
 }

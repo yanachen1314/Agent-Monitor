@@ -78,3 +78,6 @@ $RECYCLE.BIN/
 .nyc_output/
 .turbo/
 .cache/
+
+# Generated Windows Hook runner
+AgentMonitorElectron/resources/hook/AgentMonitorHook.exe

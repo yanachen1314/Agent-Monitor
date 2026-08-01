@@ -11,6 +11,9 @@ files:
   - out/**
   - resources/**
   - package.json
+extraResources:
+  - from: resources/hook
+    to: hook
 extraMetadata:
   main: out/main/index.js
 win:

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import type { CliSource, HookPreview, HookStatus } from '../../shared/types'
 import type { AppPaths } from '../paths'
-import { extractAgentMonitorStopHooks } from './filter'
+import { extractAgentMonitorStopHooks, isAgentMonitorHookCommand } from './filter'
 
 interface HookEntry {
   matcher?: string
@@ -78,11 +78,11 @@ export class HookManager {
       document.hooks = {}
     }
     const stopEntries = Array.isArray(document.hooks.Stop) ? document.hooks.Stop : []
-    const command = this.createHookCommand(source)
+    const command = await this.createHookCommand(source)
     let updatedExistingHook = false
     for (const entry of stopEntries) {
       for (const hook of entry.hooks) {
-        if (hook.command.includes(`--agent-monitor-hook=${source}`)) {
+        if (isAgentMonitorHookCommand(hook.command, source)) {
           hook.type = 'command'
           hook.command = command
           updatedExistingHook = true
@@ -135,14 +135,25 @@ export class HookManager {
       Array.isArray(entry.hooks)
         ? entry.hooks.some(
             (hook) =>
-              typeof hook.command === 'string' &&
-              hook.command.includes(`--agent-monitor-hook=${source}`)
+              typeof hook.command === 'string' && isAgentMonitorHookCommand(hook.command, source)
           )
         : false
     )
   }
 
-  private createHookCommand(source: CliSource): string {
+  private async createHookCommand(source: CliSource): Promise<string> {
+    if (process.platform === 'win32') {
+      if (app.isPackaged) {
+        // Codex's Windows sandbox cannot launch hooks from Program Files. Deploy the
+        // tiny runner beside the user's Codex config, which is an executable hook location.
+        const codexHome = process.env.CODEX_HOME || join(homedir(), '.codex')
+        const runnerDirectory = join(codexHome, 'agent-monitor')
+        const runner = join(runnerDirectory, 'AgentMonitorHook.exe')
+        await mkdir(runnerDirectory, { recursive: true })
+        await copyFile(join(process.resourcesPath, 'hook', 'AgentMonitorHook.exe'), runner)
+        return `${quoteCommandPath(runner)} ${source}`
+      }
+    }
     const executable = `"${process.execPath.replaceAll('"', '\\"')}"`
     const appPath = app.isPackaged ? '' : ` "${app.getAppPath().replaceAll('"', '\\"')}"`
     return `${executable}${appPath} --agent-monitor-hook=${source}`
@@ -158,4 +169,8 @@ export class HookManager {
     await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
     await rename(temporary, path)
   }
+}
+
+function quoteCommandPath(path: string): string {
+  return /\s/.test(path) ? `"${path.replaceAll('"', '\\"')}"` : path
 }

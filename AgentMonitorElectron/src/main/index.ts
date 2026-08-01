@@ -433,6 +433,9 @@ function startDesktopApplication(): void {
       args: ['--hidden']
     })
     hookManager = new HookManager(paths)
+    await refreshConfiguredHooks(hookManager).catch((error) => {
+      logger.error('刷新 Hook 命令失败', error)
+    })
     eventProcessor = new EventProcessor()
     audioResolver = new AudioResolver(paths)
     audioQueue = new AudioQueue(async (command) => {
@@ -455,6 +458,13 @@ function startDesktopApplication(): void {
     await emitRuntime()
     logger.info('Agent Monitor 已启动')
   })
+}
+
+async function refreshConfiguredHooks(hookManager: HookManager): Promise<void> {
+  for (const source of ['claude', 'codex'] as const) {
+    const status = await hookManager.getStatus(source)
+    if (status.state === 'configured') await hookManager.repair(source)
+  }
 }
 
 function parseHookSource(args: string[]): CliSource | null {

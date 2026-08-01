@@ -63,8 +63,8 @@ interface IpcRuntimeBase {
 
 export type IpcRuntime =
   | (IpcRuntimeBase & {
-      transport: 'pipe'
-      pipeName: string
+      transport: 'file'
+      inboxDir: string
     })
   | (IpcRuntimeBase & {
       transport: 'tcp'

@@ -1,5 +1,7 @@
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
+import { randomUUID } from 'node:crypto'
+import { dirname, join, resolve } from 'node:path'
 import type {
   CliSource,
   IpcRequest,
@@ -42,7 +44,10 @@ export async function runHookClient(
       await options.recoverRuntime()
       return await sendEventAfterRecovery(runtimeFile, event, options)
     }
-  } catch {
+  } catch (error) {
+    const detail =
+      error instanceof Error ? `${error.name}: ${error.message}` : 'Unknown hook client error'
+    await writeHookDiagnostic(runtimeFile, detail)
     return null
   }
 }
@@ -86,11 +91,13 @@ async function readRuntime(path: string): Promise<IpcRuntime> {
   if (runtime.version !== 1 || typeof runtime.token !== 'string' || runtime.token.length < 16) {
     throw new Error('RUNTIME_INVALID')
   }
-  if (
-    runtime.transport === 'pipe' &&
-    (typeof runtime.pipeName !== 'string' || runtime.pipeName.length === 0)
-  ) {
-    throw new Error('RUNTIME_INVALID')
+  if (runtime.transport === 'file') {
+    const expectedInbox = resolve(dirname(path), 'inbox')
+    if (typeof runtime.inboxDir !== 'string' || resolve(runtime.inboxDir) !== expectedInbox) {
+      throw new Error('RUNTIME_INVALID')
+    }
+    const runtimeStats = await stat(path)
+    if (Date.now() - runtimeStats.mtimeMs > 3_000) throw new Error('RUNTIME_STALE')
   }
   if (
     runtime.transport === 'tcp' &&
@@ -102,7 +109,7 @@ async function readRuntime(path: string): Promise<IpcRuntime> {
   ) {
     throw new Error('RUNTIME_INVALID')
   }
-  if (runtime.transport !== 'pipe' && runtime.transport !== 'tcp') {
+  if (runtime.transport !== 'file' && runtime.transport !== 'tcp') {
     throw new Error('RUNTIME_INVALID')
   }
   return runtime as IpcRuntime
@@ -115,11 +122,18 @@ async function sendEvent(runtime: IpcRuntime, event: TurnStoppedEvent): Promise<
     event
   }
 
-  return new Promise<IpcResponse>((resolve, reject) => {
-    const socket =
-      runtime.transport === 'pipe'
-        ? createConnection(runtime.pipeName)
-        : createConnection({ host: runtime.host, port: runtime.port })
+  if (runtime.transport === 'file') {
+    await mkdir(runtime.inboxDir, { recursive: true })
+    const id = randomUUID()
+    const temporary = join(runtime.inboxDir, `.${id}.tmp`)
+    const destination = join(runtime.inboxDir, `${id}.json`)
+    await writeFile(temporary, `${JSON.stringify(request)}\n`, { encoding: 'utf8', mode: 0o600 })
+    await rename(temporary, destination)
+    return { ok: true, code: 'ACCEPTED' }
+  }
+
+  return new Promise<IpcResponse>((resolveResponse, reject) => {
+    const socket = createConnection({ host: runtime.host, port: runtime.port })
     socket.setEncoding('utf8')
     socket.setTimeout(500)
     let response = ''
@@ -137,7 +151,7 @@ async function sendEvent(runtime: IpcRuntime, event: TurnStoppedEvent): Promise<
       if (newline < 0) return
       clearTimeout(timer)
       socket.end()
-      resolve(JSON.parse(response.slice(0, newline)) as IpcResponse)
+      resolveResponse(JSON.parse(response.slice(0, newline)) as IpcResponse)
     })
     socket.once('timeout', () => {
       clearTimeout(timer)
@@ -175,6 +189,19 @@ async function sendEventAfterRecovery(
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+async function writeHookDiagnostic(runtimeFile: string, message: string): Promise<void> {
+  try {
+    const directory = dirname(runtimeFile)
+    await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, 'hook-error.log'), `${new Date().toISOString()} ${message}\n`, {
+      encoding: 'utf8',
+      mode: 0o600
+    })
+  } catch {
+    // 诊断写入不能影响 Hook 退出。
+  }
 }
 
 function stringOrNull(value: unknown): string | null {

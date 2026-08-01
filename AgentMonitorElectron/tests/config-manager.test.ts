@@ -16,6 +16,7 @@ async function createPaths(): Promise<AppPaths> {
     userData,
     configFile: join(userData, 'config.json'),
     runtimeFile: join(userData, 'runtime.json'),
+    inboxDir: join(userData, 'inbox'),
     audioDir: join(userData, 'audio'),
     backupDir: join(userData, 'backups'),
     logDir: join(userData, 'logs'),

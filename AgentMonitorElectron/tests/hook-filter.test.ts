@@ -51,4 +51,14 @@ describe('extractAgentMonitorStopHooks', () => {
       )
     ).toEqual([])
   })
+
+  it('识别独立 Windows Hook Runner', () => {
+    const command = '"C:\\Agent Monitor\\AgentMonitorHook.exe" codex'
+    expect(
+      extractAgentMonitorStopHooks(
+        { hooks: { Stop: [{ hooks: [{ type: 'command', command }] }] } },
+        'codex'
+      )
+    ).toEqual([{ hooks: [{ type: 'command', command }] }])
+  })
 })

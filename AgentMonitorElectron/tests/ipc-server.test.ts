@@ -25,6 +25,7 @@ describe('Local IPC server', () => {
       userData: directory,
       configFile: join(directory, 'config.json'),
       runtimeFile: join(directory, 'runtime.json'),
+      inboxDir: join(directory, 'inbox'),
       audioDir: join(directory, 'audio'),
       backupDir: join(directory, 'backups'),
       logDir: join(directory, 'logs'),
@@ -35,7 +36,7 @@ describe('Local IPC server', () => {
 
     try {
       const runtime = await server.start()
-      expect(runtime.transport).toBe(process.platform === 'win32' ? 'pipe' : 'tcp')
+      expect(runtime.transport).toBe(process.platform === 'win32' ? 'file' : 'tcp')
       expect(JSON.parse(await readFile(paths.runtimeFile, 'utf8')).transport).toBe(
         runtime.transport
       )
@@ -54,12 +55,14 @@ describe('Local IPC server', () => {
       )
 
       expect(response).toEqual({ ok: true, code: 'ACCEPTED' })
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: 'codex',
-          sessionId: 'session-1',
-          turnId: 'turn-1'
-        })
+      await vi.waitFor(() =>
+        expect(onEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: 'codex',
+            sessionId: 'session-1',
+            turnId: 'turn-1'
+          })
+        )
       )
     } finally {
       await server.stop()
@@ -73,6 +76,7 @@ describe('Local IPC server', () => {
       userData: directory,
       configFile: join(directory, 'config.json'),
       runtimeFile: join(directory, 'runtime.json'),
+      inboxDir: join(directory, 'inbox'),
       audioDir: join(directory, 'audio'),
       backupDir: join(directory, 'backups'),
       logDir: join(directory, 'logs'),
@@ -98,8 +102,10 @@ describe('Local IPC server', () => {
 
       expect(recoverRuntime).toHaveBeenCalledOnce()
       expect(response).toEqual({ ok: true, code: 'ACCEPTED' })
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ sessionId: 'recovery-session', turnId: 'recovery-turn' })
+      await vi.waitFor(() =>
+        expect(onEvent).toHaveBeenCalledWith(
+          expect.objectContaining({ sessionId: 'recovery-session', turnId: 'recovery-turn' })
+        )
       )
     } finally {
       await server.stop()
