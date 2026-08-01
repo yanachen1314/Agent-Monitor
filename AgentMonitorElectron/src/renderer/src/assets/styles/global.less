@@ -284,7 +284,12 @@ button {
   height: calc(100% - var(--titlebar-height) - var(--navigation-height));
   overflow: auto;
   padding: 24px 30px 32px;
-  .themed-scrollbar();
+  scrollbar-width: none;
+}
+
+.app-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .loading-state,
