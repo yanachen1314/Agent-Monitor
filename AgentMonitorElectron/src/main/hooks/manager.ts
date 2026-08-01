@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import type { CliSource, HookPreview, HookStatus } from '../../shared/types'
 import type { AppPaths } from '../paths'
+import { formatWindowsHookRunnerCommand } from './command'
 import { extractAgentMonitorStopHooks, isAgentMonitorHookCommand } from './filter'
 
 interface HookEntry {
@@ -151,7 +152,7 @@ export class HookManager {
         const runner = join(runnerDirectory, 'AgentMonitorHook.exe')
         await mkdir(runnerDirectory, { recursive: true })
         await copyFile(join(process.resourcesPath, 'hook', 'AgentMonitorHook.exe'), runner)
-        return `${quoteCommandPath(runner)} ${source}`
+        return formatWindowsHookRunnerCommand(runner, source)
       }
     }
     const executable = `"${process.execPath.replaceAll('"', '\\"')}"`
@@ -169,8 +170,4 @@ export class HookManager {
     await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
     await rename(temporary, path)
   }
-}
-
-function quoteCommandPath(path: string): string {
-  return /\s/.test(path) ? `"${path.replaceAll('"', '\\"')}"` : path
 }
