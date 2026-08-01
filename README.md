@@ -121,9 +121,9 @@ Agent-Monitor/
 
 - Renderer 禁用 Node.js，并启用 `contextIsolation` 和沙箱。
 - Preload 仅向界面暴露固定白名单 API。
-- Hook 仅连接本机 `127.0.0.1`，并使用当前进程生成的随机 Token。
+- Windows Hook 通过本机命名管道通信，其他平台仅连接 `127.0.0.1`；两者都使用当前进程生成的随机 Token。
 - 不记录或传输 Prompt、完整回复、Transcript 或用户代码。
-- Hook 调用失败时正常退出，不影响 Claude Code 或 Codex CLI 的使用。
+- Hook 调用失败时输出简短错误并快速退出，不会阻塞 Claude Code 或 Codex 的任务执行。
 - GitHub 与 Gitee 入口只能打开应用内预设的固定仓库地址。
 
 ## 开源协议

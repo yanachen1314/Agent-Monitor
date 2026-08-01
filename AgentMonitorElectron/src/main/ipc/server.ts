@@ -22,29 +22,39 @@ export class LocalIpcServer {
     const server = createServer((socket) => this.handleConnection(socket, token))
     server.maxConnections = 32
 
+    const pipeName = `\\\\.\\pipe\\agent-monitor-${randomBytes(16).toString('hex')}`
+    const useNamedPipe = process.platform === 'win32'
+
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject)
-      server.listen(0, '127.0.0.1', () => {
+      const onListening = (): void => {
         server.off('error', reject)
         resolve()
-      })
+      }
+      if (useNamedPipe) {
+        server.listen(pipeName, onListening)
+      } else {
+        server.listen(0, '127.0.0.1', onListening)
+      }
     })
 
     const address = server.address()
-    if (!address || typeof address === 'string') {
+    if (!address) {
       server.close()
       throw new Error('IPC_ADDRESS_UNAVAILABLE')
     }
 
     this.server = server
-    this.runtime = {
-      version: 1,
-      host: '127.0.0.1',
-      port: address.port,
-      token,
-      pid: process.pid,
-      startedAt: Date.now()
-    }
+    const common = { version: 1 as const, token, pid: process.pid, startedAt: Date.now() }
+    this.runtime =
+      typeof address === 'string'
+        ? { ...common, transport: 'pipe', pipeName: address }
+        : {
+            ...common,
+            transport: 'tcp',
+            host: '127.0.0.1',
+            port: address.port
+          }
     await this.writeRuntimeFile(this.runtime)
     return this.runtime
   }

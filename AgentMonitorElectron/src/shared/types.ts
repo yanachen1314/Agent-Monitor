@@ -54,14 +54,23 @@ export interface IpcResponse {
   code: IpcResponseCode
 }
 
-export interface IpcRuntime {
+interface IpcRuntimeBase {
   version: 1
-  host: '127.0.0.1'
-  port: number
   token: string
   pid: number
   startedAt: number
 }
+
+export type IpcRuntime =
+  | (IpcRuntimeBase & {
+      transport: 'pipe'
+      pipeName: string
+    })
+  | (IpcRuntimeBase & {
+      transport: 'tcp'
+      host: '127.0.0.1'
+      port: number
+    })
 
 export interface HookStatus {
   source: CliSource

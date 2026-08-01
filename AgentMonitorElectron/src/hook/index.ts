@@ -68,16 +68,26 @@ async function readRuntime(path: string): Promise<IpcRuntime> {
     )
   ])
   const runtime = JSON.parse(content) as Partial<IpcRuntime>
+  if (runtime.version !== 1 || typeof runtime.token !== 'string' || runtime.token.length < 16) {
+    throw new Error('RUNTIME_INVALID')
+  }
   if (
-    runtime.version !== 1 ||
-    runtime.host !== '127.0.0.1' ||
-    !Number.isInteger(runtime.port) ||
-    !runtime.port ||
-    runtime.port < 1 ||
-    runtime.port > 65535 ||
-    typeof runtime.token !== 'string' ||
-    runtime.token.length < 16
+    runtime.transport === 'pipe' &&
+    (typeof runtime.pipeName !== 'string' || runtime.pipeName.length === 0)
   ) {
+    throw new Error('RUNTIME_INVALID')
+  }
+  if (
+    runtime.transport === 'tcp' &&
+    (runtime.host !== '127.0.0.1' ||
+      !Number.isInteger(runtime.port) ||
+      !runtime.port ||
+      runtime.port < 1 ||
+      runtime.port > 65535)
+  ) {
+    throw new Error('RUNTIME_INVALID')
+  }
+  if (runtime.transport !== 'pipe' && runtime.transport !== 'tcp') {
     throw new Error('RUNTIME_INVALID')
   }
   return runtime as IpcRuntime
@@ -91,7 +101,10 @@ async function sendEvent(runtime: IpcRuntime, event: TurnStoppedEvent): Promise<
   }
 
   return new Promise<IpcResponse>((resolve, reject) => {
-    const socket = createConnection({ host: '127.0.0.1', port: runtime.port })
+    const socket =
+      runtime.transport === 'pipe'
+        ? createConnection(runtime.pipeName)
+        : createConnection({ host: runtime.host, port: runtime.port })
     socket.setEncoding('utf8')
     socket.setTimeout(500)
     let response = ''

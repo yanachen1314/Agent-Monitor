@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
+
+const packageJson = JSON.parse(
+  readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
+) as { version: string }
 
 export default defineConfig({
   main: {
@@ -25,6 +30,9 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
+    define: {
+      __APP_VERSION__: JSON.stringify(packageJson.version)
+    },
     resolve: {
       alias: {
         '@renderer': resolve(__dirname, 'src/renderer/src'),

@@ -39,6 +39,6 @@ npm run build:win
 
 - Renderer 禁用 Node.js，启用 `contextIsolation` 和 `sandbox`。
 - Preload 仅暴露固定白名单 API。
-- Hook 只连接 `127.0.0.1`，使用当前进程随机 Token。
+- Windows Hook 使用本机命名管道，其他平台只连接 `127.0.0.1`；两者都使用当前进程随机 Token。
 - 不记录或传输 Prompt、完整回复、transcript 和用户代码。
-- Hook 失败始终正常退出，不影响 Claude Code 或 Codex CLI。
+- Hook 失败时输出简短错误并快速退出，不会阻塞 Claude Code 或 Codex 的任务执行。

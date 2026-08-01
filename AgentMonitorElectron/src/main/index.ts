@@ -38,7 +38,13 @@ const hookSource = parseHookSource(process.argv)
 if (hookSource) {
   app.whenReady().then(async () => {
     const paths = createAppPaths()
-    await runHookClient(hookSource, paths.runtimeFile)
+    const response = await runHookClient(hookSource, paths.runtimeFile)
+    if (!response?.ok) {
+      process.stderr.write(`Agent Monitor Hook 发送失败：${response?.code ?? 'IPC_UNAVAILABLE'}\n`)
+      app.exit(1)
+      return
+    }
+    process.stdout.write('{"continue":true}\n')
     app.exit(0)
   })
 } else {
@@ -80,13 +86,16 @@ function startDesktopApplication(): void {
     rebuildTray()
   }
 
-  const getRuntimeState = async (): Promise<RuntimeState> => ({
-    running: true,
-    ipcPort: ipcServer.getRuntime()?.port ?? null,
-    hooks: await hookManager.getStatuses(),
-    lastEvent: eventProcessor.getLastEvent(),
-    recentActivities: eventProcessor.getActivities()
-  })
+  const getRuntimeState = async (): Promise<RuntimeState> => {
+    const ipcRuntime = ipcServer.getRuntime()
+    return {
+      running: true,
+      ipcPort: ipcRuntime?.transport === 'tcp' ? ipcRuntime.port : null,
+      hooks: await hookManager.getStatuses(),
+      lastEvent: eventProcessor.getLastEvent(),
+      recentActivities: eventProcessor.getActivities()
+    }
+  }
 
   const emitRuntime = async (): Promise<void> => {
     mainWindow?.webContents.send(channels.runtimeChanged, await getRuntimeState())
