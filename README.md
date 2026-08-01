@@ -184,9 +184,13 @@ Windows 构建需要可用的 64 位 MinGW GCC，用于编译无 CLR 依赖的 H
 
 macOS DMG 安装包：
 
-```powershell
+```bash
 npm run build:mac
 ```
+
+在 Mac 上构建或发布前，请阅读
+[macOS 构建、测试与运行指南](./macos-guide)。该文档包含 Apple Silicon/Intel
+架构、签名与公证、Hook/IPC 验证、登录启动以及当前已知的 macOS 风险清单。
 
 构建产物默认输出到 `AgentMonitorElectron/release/`。
 
