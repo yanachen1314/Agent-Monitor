@@ -13,7 +13,7 @@ export class AudioQueue {
   private timeout: NodeJS.Timeout | null = null
   private readonly maxQueueSize = 8
 
-  constructor(private readonly dispatch: (command: AudioPlayCommand) => void) {}
+  constructor(private readonly dispatch: (command: AudioPlayCommand) => Promise<void> | void) {}
 
   enqueue(audio: ResolvedAudio): Promise<void> {
     if (this.queue.length >= this.maxQueueSize) {
@@ -58,13 +58,23 @@ export class AudioQueue {
     if (this.active || this.queue.length === 0) return
     this.active = this.queue.shift() ?? null
     if (!this.active) return
-    this.dispatch(this.active.command)
-    this.timeout = setTimeout(() => {
-      if (!this.active) return
-      const timedOut = this.active
-      this.active = null
-      timedOut.reject(new Error('AUDIO_PLAY_TIMEOUT'))
-      this.playNext()
-    }, 10_000)
+    const dispatched = this.active
+    void Promise.resolve()
+      .then(() => this.dispatch(dispatched.command))
+      .then(() => {
+        if (this.active !== dispatched) return
+        this.timeout = setTimeout(() => {
+          if (this.active !== dispatched) return
+          this.active = null
+          dispatched.reject(new Error('AUDIO_PLAY_TIMEOUT'))
+          this.playNext()
+        }, 10_000)
+      })
+      .catch((error: unknown) => {
+        if (this.active !== dispatched) return
+        this.active = null
+        dispatched.reject(error instanceof Error ? error : new Error('AUDIO_DISPATCH_FAILED'))
+        this.playNext()
+      })
   }
 }

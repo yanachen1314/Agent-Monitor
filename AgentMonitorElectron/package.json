@@ -1,6 +1,6 @@
 {
   "name": "agent-monitor",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Claude Code 与 Codex CLI 单轮停止声音提醒",
   "main": "./out/main/index.js",
   "author": "Agent Monitor Contributors",

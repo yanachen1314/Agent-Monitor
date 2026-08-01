@@ -78,12 +78,23 @@ export class HookManager {
       document.hooks = {}
     }
     const stopEntries = Array.isArray(document.hooks.Stop) ? document.hooks.Stop : []
-    if (!this.hasOwnHook(document, source)) {
+    const command = this.createHookCommand(source)
+    let updatedExistingHook = false
+    for (const entry of stopEntries) {
+      for (const hook of entry.hooks) {
+        if (hook.command.includes(`--agent-monitor-hook=${source}`)) {
+          hook.type = 'command'
+          hook.command = command
+          updatedExistingHook = true
+        }
+      }
+    }
+    if (!updatedExistingHook) {
       stopEntries.push({
         hooks: [
           {
             type: 'command',
-            command: this.createHookCommand(source)
+            command
           }
         ]
       })

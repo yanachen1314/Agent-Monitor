@@ -1,5 +1,6 @@
 import { dirname, extname, join } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
 import {
   app,
   BrowserWindow,
@@ -38,7 +39,9 @@ const hookSource = parseHookSource(process.argv)
 if (hookSource) {
   app.whenReady().then(async () => {
     const paths = createAppPaths()
-    const response = await runHookClient(hookSource, paths.runtimeFile)
+    const response = await runHookClient(hookSource, paths.runtimeFile, process.stdin, {
+      recoverRuntime: startHiddenDesktopApplication
+    })
     if (!response?.ok) {
       process.stderr.write(`Agent Monitor Hook 发送失败：${response?.code ?? 'IPC_UNAVAILABLE'}\n`)
       app.exit(1)
@@ -49,6 +52,16 @@ if (hookSource) {
   })
 } else {
   startDesktopApplication()
+}
+
+function startHiddenDesktopApplication(): void {
+  const args = app.isPackaged ? ['--hidden'] : [app.getAppPath(), '--hidden']
+  const child = spawn(process.execPath, args, {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true
+  })
+  child.unref()
 }
 
 function startDesktopApplication(): void {
@@ -74,6 +87,10 @@ function startDesktopApplication(): void {
   let audioQueue: AudioQueue
   let ipcServer: LocalIpcServer
   let logger: ReturnType<typeof initializeLogger>
+  let resolveRendererReady: (() => void) | null = null
+  const rendererReady = new Promise<void>((resolve) => {
+    resolveRendererReady = resolve
+  })
 
   const assertTrustedFrame = (event: IpcMainInvokeEvent): void => {
     if (!mainWindow || event.sender.id !== mainWindow.webContents.id) {
@@ -137,6 +154,7 @@ function startDesktopApplication(): void {
     })
 
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    window.webContents.once('did-finish-load', () => resolveRendererReady?.())
     window.webContents.on('will-navigate', (event, url) => {
       const allowed =
         is.dev && process.env.ELECTRON_RENDERER_URL
@@ -417,24 +435,16 @@ function startDesktopApplication(): void {
     hookManager = new HookManager(paths)
     eventProcessor = new EventProcessor()
     audioResolver = new AudioResolver(paths)
-    audioQueue = new AudioQueue((command) => {
-      void readFile(command.path)
-        .then((content) => {
-          const extension = extname(command.path).toLowerCase()
-          const mime =
-            extension === '.mp3' ? 'audio/mpeg' : extension === '.ogg' ? 'audio/ogg' : 'audio/wav'
-          mainWindow?.webContents.send(channels.audioPlay, {
-            ...command,
-            path: `data:${mime};base64,${content.toString('base64')}`
-          })
-        })
-        .catch((error: Error) => {
-          audioQueue.handleResult({
-            requestId: command.requestId,
-            status: 'failed',
-            message: error.message
-          })
-        })
+    audioQueue = new AudioQueue(async (command) => {
+      await rendererReady
+      const content = await readFile(command.path)
+      const extension = extname(command.path).toLowerCase()
+      const mime =
+        extension === '.mp3' ? 'audio/mpeg' : extension === '.ogg' ? 'audio/ogg' : 'audio/wav'
+      mainWindow?.webContents.send(channels.audioPlay, {
+        ...command,
+        path: `data:${mime};base64,${content.toString('base64')}`
+      })
     })
     ipcServer = new LocalIpcServer(paths, onStoppedEvent)
     registerIpcHandlers()

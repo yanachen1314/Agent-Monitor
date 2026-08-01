@@ -9,6 +9,14 @@ import type {
 } from '../shared/types'
 
 const MAX_STDIN_BYTES = 256 * 1024
+const RUNTIME_RECOVERY_TIMEOUT_MS = 4_000
+const RUNTIME_RECOVERY_INTERVAL_MS = 100
+
+export interface HookClientOptions {
+  recoverRuntime?: () => Promise<void> | void
+  recoveryTimeoutMs?: number
+  recoveryIntervalMs?: number
+}
 
 interface HookPayload {
   session_id?: unknown
@@ -21,12 +29,19 @@ interface HookPayload {
 export async function runHookClient(
   source: CliSource,
   runtimeFile: string,
-  input: NodeJS.ReadableStream = process.stdin
+  input: NodeJS.ReadableStream = process.stdin,
+  options: HookClientOptions = {}
 ): Promise<IpcResponse | null> {
   try {
-    const [payload, runtime] = await Promise.all([readStdinJson(input), readRuntime(runtimeFile)])
+    const payload = await readStdinJson(input)
     const event = adaptEvent(source, payload)
-    return await sendEvent(runtime, event)
+    try {
+      return await sendEvent(await readRuntime(runtimeFile), event)
+    } catch {
+      if (!options.recoverRuntime) return null
+      await options.recoverRuntime()
+      return await sendEventAfterRecovery(runtimeFile, event, options)
+    }
   } catch {
     return null
   }
@@ -134,6 +149,32 @@ async function sendEvent(runtime: IpcRuntime, event: TurnStoppedEvent): Promise<
       reject(error)
     })
   })
+}
+
+async function sendEventAfterRecovery(
+  runtimeFile: string,
+  event: TurnStoppedEvent,
+  options: HookClientOptions
+): Promise<IpcResponse> {
+  const timeout = options.recoveryTimeoutMs ?? RUNTIME_RECOVERY_TIMEOUT_MS
+  const interval = options.recoveryIntervalMs ?? RUNTIME_RECOVERY_INTERVAL_MS
+  const deadline = Date.now() + timeout
+  let lastError: unknown = new Error('RUNTIME_RECOVERY_FAILED')
+
+  do {
+    try {
+      return await sendEvent(await readRuntime(runtimeFile), event)
+    } catch (error) {
+      lastError = error
+      await delay(interval)
+    }
+  } while (Date.now() < deadline)
+
+  throw lastError
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
 function stringOrNull(value: unknown): string | null {

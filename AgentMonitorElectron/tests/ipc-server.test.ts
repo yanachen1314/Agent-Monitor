@@ -65,4 +65,44 @@ describe('Local IPC server', () => {
       await server.stop()
     }
   })
+
+  it('运行时不存在时恢复服务并发送同一次 Hook 事件', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'agent-monitor-recovery-'))
+    temporaryDirectories.push(directory)
+    const paths: AppPaths = {
+      userData: directory,
+      configFile: join(directory, 'config.json'),
+      runtimeFile: join(directory, 'runtime.json'),
+      audioDir: join(directory, 'audio'),
+      backupDir: join(directory, 'backups'),
+      logDir: join(directory, 'logs'),
+      builtinAudio: join(directory, 'complete.wav')
+    }
+    const onEvent = vi.fn(async () => ({ ok: true as const, code: 'ACCEPTED' as const }))
+    const server = new LocalIpcServer(paths, onEvent)
+    const recoverRuntime = vi.fn(() => server.start().then(() => undefined))
+
+    try {
+      const response = await runHookClient(
+        'codex',
+        paths.runtimeFile,
+        Readable.from(
+          JSON.stringify({
+            session_id: 'recovery-session',
+            turn_id: 'recovery-turn',
+            hook_event_name: 'Stop'
+          })
+        ),
+        { recoverRuntime, recoveryTimeoutMs: 1_000, recoveryIntervalMs: 10 }
+      )
+
+      expect(recoverRuntime).toHaveBeenCalledOnce()
+      expect(response).toEqual({ ok: true, code: 'ACCEPTED' })
+      expect(onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 'recovery-session', turnId: 'recovery-turn' })
+      )
+    } finally {
+      await server.stop()
+    }
+  })
 })
