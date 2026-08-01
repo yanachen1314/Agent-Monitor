@@ -1,5 +1,5 @@
 <div align="center" style="display: flex; flex-direction: column; align-items: center;">
-  <img src="./AgentMonitorElectron/resources/icon.svg" width="96" alt="Agent Monitor 图标">
+  <img src="./AgentMonitorElectron/resources/icon.png" width="96" alt="Agent Monitor 图标">
 
 # Agent Monitor
 
