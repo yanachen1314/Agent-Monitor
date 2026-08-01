@@ -15,7 +15,7 @@ extraMetadata:
   main: out/main/index.js
 win:
   executableName: AgentMonitor
-  icon: resources/icon.svg
+  icon: resources/icon.png
   target:
     - target: nsis
       arch:
@@ -27,7 +27,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
 mac:
-  icon: resources/icon.svg
+  icon: resources/icon.png
   category: public.app-category.developer-tools
   target:
     - target: dmg
