@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import type { CliSource, HookPreview, HookStatus } from '../../shared/types'
 import type { AppPaths } from '../paths'
 import { formatWindowsHookRunnerCommand } from './command'
+import { parseHooksDocument } from './document'
 import { extractAgentMonitorStopHooks, isAgentMonitorHookCommand } from './filter'
 
 interface HookEntry {
@@ -29,7 +30,7 @@ export class HookManager {
     const configPath = this.getConfigPath(source)
     try {
       const content = await readFile(configPath, 'utf8')
-      const document = JSON.parse(content) as HooksDocument
+      const document = parseHooksDocument<HooksDocument>(content)
       const configured = this.hasOwnHook(document, source)
       return {
         source,
@@ -67,7 +68,7 @@ export class HookManager {
     let document: HooksDocument = {}
     try {
       const content = await readFile(configPath, 'utf8')
-      document = JSON.parse(content) as HooksDocument
+      document = parseHooksDocument<HooksDocument>(content)
       await this.backup(configPath, source)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -111,7 +112,7 @@ export class HookManager {
 
   async getPreview(source: CliSource): Promise<HookPreview> {
     const configPath = this.getConfigPath(source)
-    const document: unknown = JSON.parse(await readFile(configPath, 'utf8'))
+    const document: unknown = parseHooksDocument(await readFile(configPath, 'utf8'))
     const entries = extractAgentMonitorStopHooks(document, source)
     if (entries.length === 0) throw new Error('HOOK_NOT_CONFIGURED')
     return {
