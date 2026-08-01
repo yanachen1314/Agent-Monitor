@@ -8,6 +8,8 @@
 [![GitHub](https://img.shields.io/badge/GitHub-Agent--Monitor-181717?logo=github&logoColor=white)](https://github.com/yanachen1314/Agent-Monitor)
 [![Gitee](https://img.shields.io/badge/Gitee-Agent--Monitor-C71D23?logo=gitee&logoColor=white)](https://gitee.com/yanachen1314/agent-monitor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](./LICENSE)
+[![Electron 43](https://img.shields.io/badge/Electron-43-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Vue 3](https://img.shields.io/badge/Vue-3-42B883?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 
 </div>
 
