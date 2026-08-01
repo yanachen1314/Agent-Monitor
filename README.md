@@ -5,7 +5,7 @@
 
 面向 Claude Code 与 Codex CLI 的本地单轮停止声音提醒工具。
 
-[![Agent Monitor](https://img.shields.io/badge/-Agent%20Monitor-5B5BEA?logo=electron&logoColor=white)](https://github.com/yanachen1314/Agent-Monitor)
+[![Agent Monitor](./.github/assets/agent-monitor-badge.svg)](https://github.com/yanachen1314/Agent-Monitor)
 [![GitHub](https://img.shields.io/badge/GitHub-Agent--Monitor-181717?logo=github&logoColor=white)](https://github.com/yanachen1314/Agent-Monitor)
 [![Gitee](https://img.shields.io/badge/Gitee-Agent--Monitor-C71D23?logo=gitee&logoColor=white)](https://gitee.com/yanachen1314/agent-monitor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](./LICENSE)
