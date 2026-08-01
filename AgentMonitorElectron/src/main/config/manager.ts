@@ -131,7 +131,8 @@ export class ConfigManager {
         name: this.audioDisplayName(file, 'builtin'),
         format: extname(file).slice(1).toUpperCase(),
         source: 'builtin' as const,
-        selected: this.config.defaultAudio.path === `builtin://${file}`
+        selected: this.config.defaultAudio.path === `builtin://${file}`,
+        uploadedAt: null
       })),
       ...uploadedFiles.map((file) => {
         const path = join(this.paths.audioDir, file)
@@ -140,7 +141,8 @@ export class ConfigManager {
           name: this.audioDisplayName(file, 'uploaded'),
           format: extname(file).slice(1).toUpperCase(),
           source: 'uploaded' as const,
-          selected: this.config.defaultAudio.path === path
+          selected: this.config.defaultAudio.path === path,
+          uploadedAt: this.audioUploadedAt(file)
         }
       })
     ]
@@ -217,8 +219,15 @@ export class ConfigManager {
   private audioDisplayName(file: string, source: 'builtin' | 'uploaded'): string {
     const stem = parse(file).name
     if (source === 'builtin' && stem === 'complete') return '默认提示音'
-    if (source === 'uploaded') return stem.replace(/^default-\d+-?/, '') || stem
+    if (source === 'uploaded') return stem.replace(/^default-\d+-?/, '') || '自定义提示音'
     return stem.replace(/[-_]+/g, ' ')
+  }
+
+  private audioUploadedAt(file: string): number | null {
+    const timestamp = /^default-(\d{13})(?:-|\.)/.exec(file)?.[1]
+    if (!timestamp) return null
+    const value = Number(timestamp)
+    return Number.isFinite(value) ? value : null
   }
 
   private async persist(): Promise<void> {

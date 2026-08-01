@@ -54,6 +54,18 @@ function previewAudio(item: AudioLibraryItem): void {
   void run(`preview-${item.id}`, () => api.previewLibraryAudio(item.id))
 }
 
+function formatUploadTime(timestamp: number | null): string {
+  if (!timestamp) return '上传时间未知'
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(timestamp))
+}
+
 function uploadAudio(): void {
   void run('upload', async () => {
     const result = await api.importAudio('default')
@@ -161,7 +173,7 @@ function confirmDelete(): void {
             <span class="audio-card__glyph"><UiIcon name="music" /></span>
             <span class="audio-card__copy">
               <strong>{{ item.name }}</strong>
-              <small>{{ item.format }} · 用户上传</small>
+              <small>{{ item.format }} · 上传于 {{ formatUploadTime(item.uploadedAt) }}</small>
             </span>
             <span v-if="item.selected" class="audio-card__selected">
               <UiIcon name="check" /> 当前使用

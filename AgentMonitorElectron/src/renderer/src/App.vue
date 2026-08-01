@@ -149,7 +149,7 @@ function toggleWindowMaximize(): void {
       </div>
       <div v-else-if="errorMessage" class="error-state">{{ errorMessage }}</div>
       <template v-else-if="config && runtime">
-        <Transition name="page" mode="out-in">
+        <Transition name="page">
           <HomeView
             v-if="activeView === 'home'"
             key="home"
@@ -157,16 +157,18 @@ function toggleWindowMaximize(): void {
             :runtime="runtime"
             @open-settings="activeView = 'settings'"
           />
-          <SettingsView
-            v-else-if="activeView === 'settings'"
-            key="settings"
-            :config="config"
-            :runtime="runtime"
-            @runtime-refresh="refreshRuntime"
-            @runtime-update="runtime = $event"
-            @open-audio-manager="activeView = 'audio-manager'"
-          />
-          <AudioManagerView v-else key="audio-manager" @back="activeView = 'settings'" />
+          <KeepAlive v-else>
+            <SettingsView
+              v-if="activeView === 'settings'"
+              key="settings"
+              :config="config"
+              :runtime="runtime"
+              @runtime-refresh="refreshRuntime"
+              @runtime-update="runtime = $event"
+              @open-audio-manager="activeView = 'audio-manager'"
+            />
+            <AudioManagerView v-else key="audio-manager" @back="activeView = 'settings'" />
+          </KeepAlive>
         </Transition>
       </template>
     </main>

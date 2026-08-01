@@ -92,6 +92,8 @@ describe('ConfigManager', () => {
     const uploaded = library.find((item) => item.source === 'uploaded')
     expect(uploaded?.name).toBe('轻快提示')
     expect(uploaded?.selected).toBe(true)
+    expect(uploaded?.uploadedAt).toBeTypeOf('number')
+    expect(library.find((item) => item.source === 'builtin')?.uploadedAt).toBeNull()
 
     await manager.selectDefaultAudio('builtin://complete.wav')
     expect(manager.get().defaultAudio.path).toBe('builtin://complete.wav')

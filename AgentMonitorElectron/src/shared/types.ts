@@ -104,6 +104,7 @@ export interface AudioLibraryItem {
   format: string
   source: 'builtin' | 'uploaded'
   selected: boolean
+  uploadedAt: number | null
 }
 
 export interface AudioPlayCommand extends ResolvedAudio {
