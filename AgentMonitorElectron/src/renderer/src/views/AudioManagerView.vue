@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import type { AudioLibraryItem } from '../../../shared/types'
 import BaseModalDialog from '../components/BaseModalDialog.vue'
 import UiIcon from '../components/UiIcon.vue'
@@ -8,45 +8,58 @@ const emit = defineEmits<{ back: [] }>()
 const api = window.agentMonitor
 const items = ref<AudioLibraryItem[]>([])
 const loading = ref(true)
-const busyKey = ref('')
+const busy = reactive(new Set<string>())
 const message = ref('')
 const pendingDelete = ref<AudioLibraryItem | null>(null)
 
 const builtinItems = computed(() => items.value.filter((item) => item.source === 'builtin'))
 const uploadedItems = computed(() => items.value.filter((item) => item.source === 'uploaded'))
 
-onMounted(loadLibrary)
+onMounted(() => loadLibrary(true))
 
-async function loadLibrary(): Promise<void> {
-  loading.value = true
-  message.value = ''
+async function loadLibrary(showLoading = false): Promise<void> {
+  if (showLoading) loading.value = true
   try {
     items.value = await api.getAudioLibrary()
   } catch (error) {
     message.value = error instanceof Error ? error.message : '提示音列表加载失败'
   } finally {
-    loading.value = false
+    if (showLoading) loading.value = false
   }
 }
 
 async function run(key: string, action: () => Promise<unknown>): Promise<void> {
-  if (busyKey.value) return
-  busyKey.value = key
+  if (busy.has(key)) return
+  busy.add(key)
   message.value = ''
   try {
     await action()
   } catch (error) {
     message.value = error instanceof Error ? error.message : '操作失败'
   } finally {
-    busyKey.value = ''
+    busy.delete(key)
   }
+}
+
+function isBusy(key: string): boolean {
+  return busy.has(key)
 }
 
 function selectAudio(item: AudioLibraryItem): void {
   if (item.selected) return
   void run(`select-${item.id}`, async () => {
-    await api.selectDefaultAudio(item.id)
-    await loadLibrary()
+    const previousItems = items.value
+    items.value = items.value.map((candidate) => ({
+      ...candidate,
+      selected: candidate.id === item.id
+    }))
+    try {
+      await api.selectDefaultAudio(item.id)
+      await loadLibrary()
+    } catch (error) {
+      items.value = previousItems
+      throw error
+    }
   })
 }
 
@@ -95,9 +108,9 @@ function confirmDelete(): void {
         <span>提示音设置</span>
         <strong>挑一个让等待结束更有仪式感的声音</strong>
       </div>
-      <button class="audio-manager__upload" :disabled="Boolean(busyKey)" @click="uploadAudio">
+      <button class="audio-manager__upload" :disabled="isBusy('upload')" @click="uploadAudio">
         <UiIcon name="upload" />
-        {{ busyKey === 'upload' ? '正在导入…' : '上传提示音' }}
+        {{ isBusy('upload') ? '正在导入…' : '上传提示音' }}
       </button>
     </div>
 
@@ -123,7 +136,7 @@ function confirmDelete(): void {
             v-for="item in builtinItems"
             :key="item.id"
             class="audio-card"
-            :class="{ 'is-selected': item.selected, 'is-disabled': Boolean(busyKey) }"
+            :class="{ 'is-selected': item.selected }"
           >
             <span class="audio-card__glyph"><UiIcon name="music" /></span>
             <span class="audio-card__copy">
@@ -136,14 +149,14 @@ function confirmDelete(): void {
             <button
               v-else
               class="audio-card__choose"
-              :disabled="Boolean(busyKey)"
+              :disabled="isBusy(`select-${item.id}`)"
               @click="selectAudio(item)"
             >
               选择
             </button>
             <button
               class="audio-card__action"
-              :disabled="Boolean(busyKey)"
+              :disabled="isBusy(`preview-${item.id}`)"
               title="试听"
               @click="previewAudio(item)"
             >
@@ -168,7 +181,7 @@ function confirmDelete(): void {
             v-for="item in uploadedItems"
             :key="item.id"
             class="audio-card audio-card--uploaded"
-            :class="{ 'is-selected': item.selected, 'is-disabled': Boolean(busyKey) }"
+            :class="{ 'is-selected': item.selected }"
           >
             <span class="audio-card__glyph"><UiIcon name="music" /></span>
             <span class="audio-card__copy">
@@ -181,14 +194,14 @@ function confirmDelete(): void {
             <button
               v-else
               class="audio-card__choose"
-              :disabled="Boolean(busyKey)"
+              :disabled="isBusy(`select-${item.id}`)"
               @click="selectAudio(item)"
             >
               选择
             </button>
             <button
               class="audio-card__action"
-              :disabled="Boolean(busyKey)"
+              :disabled="isBusy(`preview-${item.id}`)"
               title="试听"
               @click="previewAudio(item)"
             >
@@ -196,7 +209,6 @@ function confirmDelete(): void {
             </button>
             <button
               class="audio-card__action audio-card__action--danger"
-              :disabled="Boolean(busyKey)"
               title="删除"
               @click="pendingDelete = item"
             >
@@ -204,7 +216,7 @@ function confirmDelete(): void {
             </button>
           </article>
         </div>
-        <button v-else class="audio-empty-state" :disabled="Boolean(busyKey)" @click="uploadAudio">
+        <button v-else class="audio-empty-state" :disabled="isBusy('upload')" @click="uploadAudio">
           <span><UiIcon name="upload" /></span>
           <strong>这里还很安静</strong>
           <small>上传一个你喜欢的提示音</small>
@@ -227,10 +239,10 @@ function confirmDelete(): void {
         </button>
         <button
           class="danger-button modal-action-button"
-          :disabled="Boolean(busyKey)"
+          :disabled="pendingDelete ? isBusy(`delete-${pendingDelete.id}`) : false"
           @click="confirmDelete"
         >
-          {{ busyKey.startsWith('delete-') ? '删除中…' : '确认删除' }}
+          {{ pendingDelete && isBusy(`delete-${pendingDelete.id}`) ? '删除中…' : '确认删除' }}
         </button>
       </template>
     </BaseModalDialog>
