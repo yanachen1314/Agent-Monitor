@@ -13,7 +13,7 @@ defineProps<{
     | 'folder'
     | 'arrow-left'
     | 'upload'
-    | 'play'
+    | 'speaker'
     | 'trash'
     | 'check'
 }>()
@@ -67,8 +67,10 @@ defineProps<{
       <path d="M12 16V4m0 0L7 9m5-5 5 5" />
       <path d="M5 14v5h14v-5" />
     </template>
-    <template v-else-if="name === 'play'">
-      <path d="m9 6 9 6-9 6Z" />
+    <template v-else-if="name === 'speaker'">
+      <path class="speaker-body" d="M4 10v4h4l5 4V6l-5 4H4Z" />
+      <path class="speaker-wave speaker-wave--inner" d="M16 9a4 4 0 0 1 0 6" />
+      <path class="speaker-wave speaker-wave--outer" d="M18.5 6.5a7.5 7.5 0 0 1 0 11" />
     </template>
     <template v-else-if="name === 'trash'">
       <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />

@@ -156,11 +156,15 @@ function confirmDelete(): void {
             </button>
             <button
               class="audio-card__action"
+              :class="{ 'is-playing': isBusy(`preview-${item.id}`) }"
               :disabled="isBusy(`preview-${item.id}`)"
-              title="试听"
+              :title="isBusy(`preview-${item.id}`) ? '正在播放' : '试听'"
+              :aria-label="
+                isBusy(`preview-${item.id}`) ? `正在播放 ${item.name}` : `试听 ${item.name}`
+              "
               @click="previewAudio(item)"
             >
-              <UiIcon name="play" />
+              <UiIcon name="speaker" />
             </button>
           </article>
         </div>
@@ -201,11 +205,15 @@ function confirmDelete(): void {
             </button>
             <button
               class="audio-card__action"
+              :class="{ 'is-playing': isBusy(`preview-${item.id}`) }"
               :disabled="isBusy(`preview-${item.id}`)"
-              title="试听"
+              :title="isBusy(`preview-${item.id}`) ? '正在播放' : '试听'"
+              :aria-label="
+                isBusy(`preview-${item.id}`) ? `正在播放 ${item.name}` : `试听 ${item.name}`
+              "
               @click="previewAudio(item)"
             >
-              <UiIcon name="play" />
+              <UiIcon name="speaker" />
             </button>
             <button
               class="audio-card__action audio-card__action--danger"
