@@ -98,6 +98,14 @@ export interface ResolvedAudio {
   fallbackUsed: boolean
 }
 
+export interface AudioLibraryItem {
+  id: string
+  name: string
+  format: string
+  source: 'builtin' | 'uploaded'
+  selected: boolean
+}
+
 export interface AudioPlayCommand extends ResolvedAudio {
   requestId: string
 }
@@ -125,6 +133,10 @@ export interface AgentMonitorApi {
   importAudio(target: 'default' | CliSource): Promise<AppConfig | null>
   previewAudio(target: 'default' | CliSource): Promise<void>
   restoreBuiltinAudio(): Promise<AppConfig>
+  getAudioLibrary(): Promise<AudioLibraryItem[]>
+  selectDefaultAudio(id: string): Promise<AppConfig>
+  previewLibraryAudio(id: string): Promise<void>
+  deleteUploadedAudio(id: string): Promise<AppConfig>
   getHookStatus(): Promise<Record<CliSource, HookStatus>>
   getHookPreview(source: CliSource): Promise<HookPreview>
   openHookDirectory(source: CliSource): Promise<void>

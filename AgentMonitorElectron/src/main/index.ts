@@ -307,6 +307,31 @@ function startDesktopApplication(): void {
       emitConfig(config)
       return config
     })
+    ipcMain.handle(channels.audioLibraryGet, async (event) => {
+      assertTrustedFrame(event)
+      return configManager.getAudioLibrary()
+    })
+    ipcMain.handle(channels.audioLibrarySelect, async (event, id: string) => {
+      assertTrustedFrame(event)
+      const config = await configManager.selectDefaultAudio(String(id))
+      emitConfig(config)
+      return config
+    })
+    ipcMain.handle(channels.audioLibraryPreview, async (event, id: string) => {
+      assertTrustedFrame(event)
+      const path = await configManager.resolveLibraryAudio(String(id))
+      await audioQueue.enqueue({
+        path,
+        volume: configManager.get().defaultAudio.volume,
+        fallbackUsed: false
+      })
+    })
+    ipcMain.handle(channels.audioLibraryDelete, async (event, id: string) => {
+      assertTrustedFrame(event)
+      const config = await configManager.deleteUploadedAudio(String(id))
+      emitConfig(config)
+      return config
+    })
     ipcMain.on(channels.audioResult, (event, result: AudioPlayResult) => {
       if (mainWindow && event.sender.id === mainWindow.webContents.id) {
         audioQueue.handleResult(result)

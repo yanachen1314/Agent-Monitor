@@ -11,6 +11,11 @@ defineProps<{
     | 'wrench'
     | 'info'
     | 'folder'
+    | 'arrow-left'
+    | 'upload'
+    | 'play'
+    | 'trash'
+    | 'check'
 }>()
 </script>
 
@@ -54,6 +59,22 @@ defineProps<{
     <template v-else-if="name === 'info'">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v6M12 7h.01" />
+    </template>
+    <template v-else-if="name === 'arrow-left'">
+      <path d="m15 5-7 7 7 7M8 12h13" />
+    </template>
+    <template v-else-if="name === 'upload'">
+      <path d="M12 16V4m0 0L7 9m5-5 5 5" />
+      <path d="M5 14v5h14v-5" />
+    </template>
+    <template v-else-if="name === 'play'">
+      <path d="m9 6 9 6-9 6Z" />
+    </template>
+    <template v-else-if="name === 'trash'">
+      <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+    </template>
+    <template v-else-if="name === 'check'">
+      <path d="m5 12 4 4L19 6" />
     </template>
     <template v-else>
       <path d="M3 7h7l2 2h9v10H3z" />

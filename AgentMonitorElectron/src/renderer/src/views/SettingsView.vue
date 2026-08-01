@@ -19,6 +19,7 @@ const props = defineProps<{ config: AppConfig; runtime: RuntimeState }>()
 const emit = defineEmits<{
   'runtime-refresh': []
   'runtime-update': [state: RuntimeState]
+  'open-audio-manager': []
 }>()
 const api = window.agentMonitor
 const busy = reactive(new Set<string>())
@@ -169,26 +170,13 @@ function hookLabel(source: CliSource): string {
       <div class="setting-row setting-row--audio">
         <label>默认提示音</label>
         <div class="file-field">{{ audioName('default') }}</div>
-        <button
-          class="outline-button"
-          :disabled="isBusy('import-default')"
-          @click="run('import-default', () => api.importAudio('default'))"
-        >
-          选择音频
-        </button>
+        <button class="outline-button" @click="emit('open-audio-manager')">更换音频</button>
         <button
           class="outline-button"
           :disabled="isBusy('preview-default')"
           @click="run('preview-default', () => api.previewAudio('default'))"
         >
           试听
-        </button>
-        <button
-          class="outline-button outline-button--pink"
-          :disabled="isBusy('restore')"
-          @click="run('restore', () => api.restoreBuiltinAudio())"
-        >
-          恢复默认
         </button>
       </div>
       <div class="setting-row setting-row--volume">

@@ -4,12 +4,13 @@ import type { AppConfig, RuntimeState } from '../../shared/types'
 import UiIcon from './components/UiIcon.vue'
 import HomeView from './views/HomeView.vue'
 import SettingsView from './views/SettingsView.vue'
+import AudioManagerView from './views/AudioManagerView.vue'
 import closeIcon from './assets/images/app_close.png'
 import maximizeIcon from './assets/images/app_maximize-full.png'
 import restoreIcon from './assets/images/app_maxmize-nonfull.png'
 import minimizeIcon from './assets/images/app_minimize.png'
 
-const activeView = ref<'home' | 'settings'>('home')
+const activeView = ref<'home' | 'settings' | 'audio-manager'>('home')
 const desktop = window.agentMonitor
 const config = ref<AppConfig | null>(null)
 const runtime = ref<RuntimeState | null>(null)
@@ -121,7 +122,10 @@ function toggleWindowMaximize(): void {
           <UiIcon name="home" />
           首页
         </button>
-        <button :class="{ active: activeView === 'settings' }" @click="activeView = 'settings'">
+        <button
+          :class="{ active: activeView === 'settings' || activeView === 'audio-manager' }"
+          @click="activeView = 'settings'"
+        >
           <UiIcon name="settings" />
           设置
         </button>
@@ -154,13 +158,15 @@ function toggleWindowMaximize(): void {
             @open-settings="activeView = 'settings'"
           />
           <SettingsView
-            v-else
+            v-else-if="activeView === 'settings'"
             key="settings"
             :config="config"
             :runtime="runtime"
             @runtime-refresh="refreshRuntime"
             @runtime-update="runtime = $event"
+            @open-audio-manager="activeView = 'audio-manager'"
           />
+          <AudioManagerView v-else key="audio-manager" @back="activeView = 'settings'" />
         </Transition>
       </template>
     </main>

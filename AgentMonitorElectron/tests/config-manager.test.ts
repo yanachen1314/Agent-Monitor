@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,6 +10,8 @@ const temporaryDirectories: string[] = []
 async function createPaths(): Promise<AppPaths> {
   const userData = await mkdtemp(join(tmpdir(), 'agent-monitor-config-'))
   temporaryDirectories.push(userData)
+  const builtinDirectory = join(userData, 'resources', 'audio')
+  await mkdir(builtinDirectory, { recursive: true })
   return {
     userData,
     configFile: join(userData, 'config.json'),
@@ -17,7 +19,7 @@ async function createPaths(): Promise<AppPaths> {
     audioDir: join(userData, 'audio'),
     backupDir: join(userData, 'backups'),
     logDir: join(userData, 'logs'),
-    builtinAudio: join(userData, 'builtin.wav')
+    builtinAudio: join(builtinDirectory, 'complete.wav')
   }
 }
 
@@ -71,7 +73,46 @@ describe('ConfigManager', () => {
 
     const updated = await manager.importAudio(audio, 'codex')
     expect(updated.monitors.codex.audioMode).toBe('custom')
-    expect(updated.monitors.codex.customAudioPath).toMatch(/codex-\d+\.wav$/)
+    expect(updated.monitors.codex.customAudioPath).toMatch(/codex-\d+-notice\.wav$/)
     await expect(manager.importAudio(unsupported, 'default')).rejects.toThrow('UNSUPPORTED_AUDIO')
+  })
+
+  it('列出、选择并删除默认提示音库中的音频', async () => {
+    const paths = await createPaths()
+    const manager = new ConfigManager(paths)
+    await manager.initialize()
+    await writeFile(paths.builtinAudio, Buffer.from('RIFF'))
+    const uploadedSource = join(paths.userData, '轻快提示.wav')
+    await writeFile(uploadedSource, Buffer.from('RIFF'))
+    await manager.importAudio(uploadedSource, 'default')
+
+    const library = await manager.getAudioLibrary()
+    expect(library).toHaveLength(2)
+    expect(library.find((item) => item.source === 'builtin')?.name).toBe('默认提示音')
+    const uploaded = library.find((item) => item.source === 'uploaded')
+    expect(uploaded?.name).toBe('轻快提示')
+    expect(uploaded?.selected).toBe(true)
+
+    await manager.selectDefaultAudio('builtin://complete.wav')
+    expect(manager.get().defaultAudio.path).toBe('builtin://complete.wav')
+    await manager.deleteUploadedAudio(uploaded!.id)
+    expect(
+      (await manager.getAudioLibrary()).filter((item) => item.source === 'uploaded')
+    ).toHaveLength(0)
+  })
+
+  it('拒绝删除内置音频或访问默认提示音库之外的文件', async () => {
+    const paths = await createPaths()
+    const manager = new ConfigManager(paths)
+    await manager.initialize()
+    await expect(manager.deleteUploadedAudio('builtin://complete.wav')).rejects.toThrow(
+      'BUILTIN_AUDIO_CANNOT_BE_DELETED'
+    )
+    await expect(manager.resolveLibraryAudio('uploaded://../config.json')).rejects.toThrow(
+      'INVALID_AUDIO_LIBRARY_ID'
+    )
+    await expect(manager.resolveLibraryAudio('uploaded://codex-123.wav')).rejects.toThrow(
+      'INVALID_AUDIO_LIBRARY_ID'
+    )
   })
 })
