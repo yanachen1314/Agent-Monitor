@@ -179,6 +179,22 @@ npm run build:mac
 
 构建产物默认输出到 `AgentMonitorElectron/release/`。
 
+## 自动发布
+
+代码合并或推送到 `master` 后，GitHub Actions 会读取
+`AgentMonitorElectron/package.json` 中的版本号，执行质量检查并构建 Windows 安装包。全部步骤成功后，
+流水线会自动创建对应的 `v<version>` Tag、GitHub Release、安装包及 SHA-256 校验文件。
+
+发布新版本前必须先更新 `package.json` 和 `package-lock.json` 中的版本号，例如：
+
+```powershell
+cd AgentMonitorElectron
+npm version patch --no-git-tag-version
+```
+
+如果对应 Tag 已存在，发布会直接失败，不会覆盖现有 Release。macOS 自动发布默认关闭；完成真实设备验收并
+配置签名、公证 Secrets 后，可在 GitHub 仓库 Variables 中将 `ENABLE_MACOS_RELEASE` 设置为 `true`。
+
 ## 项目结构
 
 ```text
