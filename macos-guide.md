@@ -1,6 +1,6 @@
 # macOS 构建、测试与运行指南
 
-本文面向需要在 macOS 上构建、验证或分发 Agent Monitor 的开发者。当前 `0.1.23` 已在
+本文面向需要在 macOS 上构建、验证或分发 Agent Monitor 的开发者。当前 `0.2.0` 已在
 Windows 10 上完成 Claude Code、Codex CLI 和 Codex Desktop 的提醒验证；macOS 仍需要按本文
 清单在真实设备上完成验收，不能仅以“DMG 成功生成”作为可发布依据。
 

@@ -74,9 +74,9 @@ npm run dev
 首次配置或 Hook 命令发生变化后，Codex 会要求重新审查并信任新的 Hook 定义。请在
 Codex Desktop 的 Hook 设置中确认，或在 Codex CLI 中使用 `/hooks` 完成审查。
 
-## 0.1.23 关键变更
+## 0.2.0 关键变更
 
-Windows 版的 Stop Hook 链路在 `0.1.23` 中完成了一轮兼容性调整：
+Windows 版的 Stop Hook 链路在 `0.2.0` 中完成了一轮兼容性调整：
 
 - Windows Hook Runner 改为无 CLR 依赖的原生 `AgentMonitorHook.exe`，避免受限进程无法加载
   Electron 或 .NET 运行时。
@@ -131,7 +131,7 @@ macOS 等非 Windows 平台仍通过随机端口连接本机 `127.0.0.1`，并�
 
 ### 点击“配置 Hook”提示 `HOOK_CONFIG_INVALID`
 
-- 请先升级到 `0.1.23` 或更高版本；该版本已支持空白和 0 字节 `hooks.json`。
+- 请先升级到 `0.2.0` 或更高版本；该版本已支持空白和 0 字节 `hooks.json`。
 - 如果文件包含内容，则代表 JSON 确实无法解析。请检查尾随逗号、缺失括号或手工编辑造成的
   格式问题。Agent Monitor 不会自动覆盖真正损坏的配置。
 - Hook 每次安装或修复前都会在应用数据目录的备份文件夹中保存原配置。
@@ -147,7 +147,7 @@ macOS 等非 Windows 平台仍通过随机端口连接本机 `127.0.0.1`，并�
 
 - 确认 Claude Hook 使用带引号的正斜杠路径，例如
   `"C:/Users/<用户名>/.codex/agent-monitor/AgentMonitorHook.exe" claude`。
-- 在 Agent Monitor 中点击“修复 Hook”，或重启 `0.1.23` 及以上版本让应用自动迁移旧命令。
+- 在 Agent Monitor 中点击“修复 Hook”，或重启 `0.2.0` 及以上版本让应用自动迁移旧命令。
 - 修改配置后请新建或重启 Claude Code 会话，使其重新加载 Hook。
 
 ### Hook 成功但没有声音
