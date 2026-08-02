@@ -2,7 +2,7 @@
 import { onBeforeUnmount, watch } from 'vue'
 
 interface OperationNoticeValue {
-  tone: 'success' | 'warning'
+  tone: 'success' | 'warning' | 'error'
   text: string
 }
 
@@ -47,11 +47,11 @@ onBeforeUnmount(clearDismissTimer)
       v-if="notice"
       class="operation-notice"
       :class="`operation-notice--${notice.tone}`"
-      role="status"
-      aria-live="polite"
+      :role="notice.tone === 'error' ? 'alert' : 'status'"
+      :aria-live="notice.tone === 'error' ? 'assertive' : 'polite'"
     >
       <span class="operation-notice__icon" aria-hidden="true">
-        {{ notice.tone === 'success' ? '✓' : '!' }}
+        {{ notice.tone === 'success' ? '✓' : notice.tone === 'error' ? '×' : '!' }}
       </span>
       <span>{{ notice.text }}</span>
     </div>
@@ -110,6 +110,16 @@ onBeforeUnmount(clearDismissTimer)
 
 .operation-notice--warning .operation-notice__icon {
   background: @amber;
+}
+
+.operation-notice--error {
+  border-color: rgba(212, 77, 117, 0.24);
+  background: rgba(255, 241, 246, 0.96);
+  color: @danger;
+}
+
+.operation-notice--error .operation-notice__icon {
+  background: @danger;
 }
 
 .operation-notice-enter-active,

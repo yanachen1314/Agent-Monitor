@@ -7,6 +7,7 @@ import type {
   HookPreview,
   RuntimeState
 } from '../../../shared/types'
+import { withMinimumDuration } from '../../../shared/minimum-duration'
 import BaseModalDialog from '../components/BaseModalDialog.vue'
 import BaseToggle from '../components/BaseToggle.vue'
 import OperationNotice from '../components/OperationNotice.vue'
@@ -23,12 +24,12 @@ const emit = defineEmits<{
 }>()
 const api = window.agentMonitor
 const appVersion = `v${__APP_VERSION__}`
+const MINIMUM_REPAIR_LOADING_MS = 500
 const busy = reactive(new Set<string>())
-const message = ref('')
 const draftVolume = ref(props.config.defaultAudio.volume)
 const hookPreview = ref<HookPreview | null>(null)
 const operationNotice = ref<{
-  tone: 'success' | 'warning'
+  tone: 'success' | 'warning' | 'error'
   text: string
 } | null>(null)
 
@@ -46,11 +47,11 @@ watch(
 async function run(key: string, action: () => Promise<unknown>): Promise<void> {
   if (busy.has(key)) return
   busy.add(key)
-  message.value = ''
+  operationNotice.value = null
   try {
     await action()
   } catch (error) {
-    message.value = error instanceof Error ? error.message : '操作失败'
+    showOperationNotice('error', error instanceof Error ? error.message : '操作失败')
   } finally {
     busy.delete(key)
   }
@@ -60,7 +61,7 @@ function isBusy(key: string): boolean {
   return busy.has(key)
 }
 
-function showOperationNotice(tone: 'success' | 'warning', text: string): void {
+function showOperationNotice(tone: 'success' | 'warning' | 'error', text: string): void {
   operationNotice.value = { tone, text }
 }
 
@@ -122,9 +123,12 @@ function redetectHooks(): void {
 
 function repairHooks(): void {
   void run('repair', async () => {
-    await api.repairHook('claude')
-    await api.repairHook('codex')
+    await withMinimumDuration(async () => {
+      await api.repairHook('claude')
+      await api.repairHook('codex')
+    }, MINIMUM_REPAIR_LOADING_MS)
     emit('runtime-refresh')
+    showOperationNotice('success', '修复完成：Claude Code 与 Codex CLI Hook 已重新写入')
   })
 }
 
@@ -161,7 +165,6 @@ function hookLabel(source: CliSource): string {
 <template>
   <section class="settings-stack">
     <OperationNotice :notice="operationNotice" @dismiss="operationNotice = null" />
-    <p v-if="message" class="inline-message">{{ message }}</p>
 
     <article class="settings-panel">
       <div class="section-title">
@@ -171,7 +174,10 @@ function hookLabel(source: CliSource): string {
       <div class="setting-row setting-row--audio">
         <label>默认提示音</label>
         <div class="file-field">{{ audioName('default') }}</div>
-        <button class="outline-button" @click="emit('open-audio-manager')">更换音频</button>
+        <button class="outline-button audio-manager-trigger" @click="emit('open-audio-manager')">
+          更换音频
+          <UiIcon name="arrow-right" />
+        </button>
         <button
           class="outline-button"
           :disabled="isBusy('preview-default')"
@@ -355,6 +361,7 @@ function hookLabel(source: CliSource): string {
           </div>
           <button
             class="wide-button general-setting-action"
+            :class="{ 'is-loading': isBusy('repair') }"
             :disabled="isBusy('repair')"
             @click="repairHooks"
           >
@@ -375,7 +382,9 @@ function hookLabel(source: CliSource): string {
         <div class="about-panel__details">
           <div class="about-panel__meta">
             <div><span>应用名称</span><strong>Agent Monitor</strong></div>
-            <div><span>版本号</span><strong>{{ appVersion }}</strong></div>
+            <div>
+              <span>版本号</span><strong>{{ appVersion }}</strong>
+            </div>
           </div>
           <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
         </div>

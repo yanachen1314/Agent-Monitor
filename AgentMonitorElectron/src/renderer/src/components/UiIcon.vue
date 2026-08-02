@@ -12,6 +12,7 @@ defineProps<{
     | 'info'
     | 'folder'
     | 'arrow-left'
+    | 'arrow-right'
     | 'upload'
     | 'speaker'
     | 'trash'
@@ -62,6 +63,9 @@ defineProps<{
     </template>
     <template v-else-if="name === 'arrow-left'">
       <path d="m15 5-7 7 7 7M8 12h13" />
+    </template>
+    <template v-else-if="name === 'arrow-right'">
+      <path d="m9 5 7 7-7 7M16 12H3" />
     </template>
     <template v-else-if="name === 'upload'">
       <path d="M12 16V4m0 0L7 9m5-5 5 5" />
