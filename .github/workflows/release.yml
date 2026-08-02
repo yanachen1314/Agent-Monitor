@@ -80,16 +80,26 @@ jobs:
           cache: npm
           cache-dependency-path: AgentMonitorElectron/package-lock.json
       - name: Install MinGW GCC
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
           install: mingw-w64-x86_64-gcc
       - run: npm ci
+      - name: Verify MinGW GCC
+        shell: pwsh
+        env:
+          AGENT_MONITOR_GCC: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin\gcc.exe
+        run: |
+          if (-not (Test-Path -LiteralPath $env:AGENT_MONITOR_GCC)) {
+            throw "MinGW GCC not found: $env:AGENT_MONITOR_GCC"
+          }
+          & $env:AGENT_MONITOR_GCC --version
       - name: Build Windows installer
         run: npm run build:win
         env:
-          AGENT_MONITOR_GCC: C:\msys64\mingw64\bin\gcc.exe
+          AGENT_MONITOR_GCC: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin\gcc.exe
       - name: Upload Windows release files
         uses: actions/upload-artifact@v6
         with:
