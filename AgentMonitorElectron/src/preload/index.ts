@@ -7,7 +7,8 @@ import type {
   AudioPlayCommand,
   AudioPlayResult,
   ProjectWebsite,
-  RuntimeState
+  RuntimeState,
+  UpdateState
 } from '../shared/types'
 
 const api: AgentMonitorApi = {
@@ -38,6 +39,10 @@ const api: AgentMonitorApi = {
   installHook: (source) => ipcRenderer.invoke(channels.hooksInstall, source),
   repairHook: (source) => ipcRenderer.invoke(channels.hooksRepair, source),
   getRuntimeState: () => ipcRenderer.invoke(channels.runtimeGet),
+  getUpdateState: () => ipcRenderer.invoke(channels.updateGetState),
+  checkForUpdates: () => ipcRenderer.invoke(channels.updateCheck),
+  downloadUpdate: () => ipcRenderer.invoke(channels.updateDownload),
+  installUpdate: () => ipcRenderer.invoke(channels.updateInstall),
   openProjectWebsite: (target: ProjectWebsite) =>
     ipcRenderer.invoke(channels.linksOpenProject, target),
   openLogDirectory: () => ipcRenderer.invoke(channels.logsOpenDirectory),
@@ -63,6 +68,12 @@ const api: AgentMonitorApi = {
     const listener = (): void => callback()
     ipcRenderer.on(channels.windowOpenSettings, listener)
     return () => ipcRenderer.removeListener(channels.windowOpenSettings, listener)
+  },
+  onUpdateStateChanged: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: UpdateState): void =>
+      callback(state)
+    ipcRenderer.on(channels.updateStateChanged, listener)
+    return () => ipcRenderer.removeListener(channels.updateStateChanged, listener)
   },
   onAudioCommand: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, command: AudioPlayCommand): void =>

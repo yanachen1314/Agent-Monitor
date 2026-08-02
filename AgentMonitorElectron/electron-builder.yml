@@ -1,6 +1,11 @@
 appId: com.agentmonitor.desktop
 productName: Agent Monitor
 asar: true
+electronUpdaterCompatibility: '>= 2.16'
+publish:
+  provider: github
+  owner: yanachen1314
+  repo: Agent-Monitor
 electronLanguages:
   - en-US
   - zh-CN
@@ -23,7 +28,7 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: ${productName}-${version}-Windows-${arch}-Setup.${ext}
+  artifactName: Agent.Monitor-${version}-Windows-${arch}-Setup.${ext}
 nsis:
   oneClick: false
   perMachine: false

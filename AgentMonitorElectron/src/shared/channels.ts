@@ -30,6 +30,11 @@ export const channels = {
   hooksRepair: 'hooks:repair',
   runtimeGet: 'runtime:get',
   runtimeChanged: 'runtime:changed',
+  updateGetState: 'update:get-state',
+  updateCheck: 'update:check',
+  updateDownload: 'update:download',
+  updateInstall: 'update:install',
+  updateStateChanged: 'update:state-changed',
   linksOpenProject: 'links:open-project',
   logsOpenDirectory: 'logs:open-directory',
   loggingRendererError: 'logging:renderer-error'

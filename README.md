@@ -195,6 +195,18 @@ npm version patch --no-git-tag-version
 如果对应 Tag 已存在，发布会直接失败，不会覆盖现有 Release。macOS 自动发布默认关闭；完成真实设备验收并
 配置签名、公证 Secrets 后，可在 GitHub 仓库 Variables 中将 `ENABLE_MACOS_RELEASE` 设置为 `true`。
 
+## 自动更新
+
+打包后的 Windows 正式版本启动 30 秒后会在后台检查 GitHub Release，也可以在“设置 → 软件更新”中手动检查。
+发现新版本后由用户确认下载；下载完成后再次确认，应用才会退出并安装更新，不会在使用过程中强制重启。
+
+NSIS 安装版会直接升级现有安装。`win-unpacked` 压缩版也能检查和下载更新，但安装阶段会启动 NSIS 安装
+程序，不会原地覆盖用户解压出的目录。
+
+自动发布流水线会将 `latest.yml`、安装包和对应的 `.blockmap` 一并上传到 GitHub Release。三者必须保留且
+文件名需要一致，否则已安装的客户端无法完成增量下载。首次包含自动更新功能的版本仍需用户手动安装；从该
+版本升级到后续版本时才会进入自动更新流程。
+
 ## 项目结构
 
 ```text

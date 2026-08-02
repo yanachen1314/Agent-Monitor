@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type {
   AppConfig,
   AudioMode,
   CliSource,
   HookPreview,
   LogLevel,
-  RuntimeState
+  RuntimeState,
+  UpdateState,
+  UpdateStatus
 } from '../../../shared/types'
 import { withMinimumDuration } from '../../../shared/minimum-duration'
 import BaseModalDialog from '../components/base/BaseModalDialog.vue'
@@ -37,6 +39,8 @@ const logLevelOptions = [
 const busy = reactive(new Set<string>())
 const draftVolume = ref(props.config.defaultAudio.volume)
 const hookPreview = ref<HookPreview | null>(null)
+const updateState = ref<UpdateState | null>(null)
+let removeUpdateListener: (() => void) | null = null
 const operationNotice = ref<{
   tone: 'success' | 'warning' | 'error'
   text: string
@@ -46,12 +50,109 @@ const volumeStyle = computed<Record<string, string>>(() => ({
   '--range-progress': `${Math.round(draftVolume.value * 100)}%`
 }))
 
+const updateTitle = computed(() => {
+  switch (updateState.value?.status) {
+    case 'unsupported':
+      return '当前版本不支持自动更新'
+    case 'checking':
+      return '正在检查更新…'
+    case 'available':
+      return `发现新版本 v${updateState.value.latestVersion}`
+    case 'up-to-date':
+      return '当前已是最新版本'
+    case 'downloading':
+      return `正在下载 v${updateState.value.latestVersion}`
+    case 'downloaded':
+      return `v${updateState.value.latestVersion} 已准备就绪`
+    case 'installing':
+      return '正在退出并安装更新…'
+    case 'error':
+      return updateState.value.error ?? '自动更新发生错误'
+    default:
+      return '检查 Agent Monitor 新版本'
+  }
+})
+
+const updateDescription = computed(() => {
+  if (!updateState.value) return '正在读取更新状态…'
+  if (!updateState.value.supported) return '自动更新仅支持打包后的 Windows 正式版本。'
+  if (updateState.value.status === 'available') return '确认后下载，下载期间可以继续使用应用。'
+  if (updateState.value.status === 'downloaded') return '重启应用后将自动完成安装，现有配置会保留。'
+  if (updateState.value.status === 'error') return '请检查网络连接，也可以前往 GitHub 手动下载。'
+  return `当前版本 ${appVersion}，应用启动后会在后台自动检查一次。`
+})
+
+const updateActionLabel = computed(() => {
+  switch (updateState.value?.status) {
+    case 'checking':
+      return '检查中…'
+    case 'available':
+      return '下载更新'
+    case 'downloading':
+      return `下载中 ${Math.round(updateState.value.progress ?? 0)}%`
+    case 'downloaded':
+      return '立即重启安装'
+    case 'installing':
+      return '正在安装…'
+    case 'unsupported':
+      return '仅 Windows 版支持'
+    default:
+      return '检查更新'
+  }
+})
+
+const updateStatusLabel = computed(() => {
+  const labels: Record<UpdateStatus, string> = {
+    unsupported: '不可用',
+    idle: '待检查',
+    checking: '检查中',
+    available: '可更新',
+    'up-to-date': '最新',
+    downloading: '下载中',
+    downloaded: '待安装',
+    installing: '安装中',
+    error: '失败'
+  }
+  return updateState.value ? labels[updateState.value.status] : '加载中'
+})
+
+const updateActionDisabled = computed(() => {
+  const status = updateState.value?.status
+  return (
+    !updateState.value || ['unsupported', 'checking', 'downloading', 'installing'].includes(status!)
+  )
+})
+
+const updateTone = computed<'success' | 'warning' | 'muted' | 'accent'>(() => {
+  const status = updateState.value?.status
+  if (status === 'downloaded' || status === 'up-to-date') return 'success'
+  if (status === 'available') return 'accent'
+  if (status === 'error') return 'warning'
+  return 'muted'
+})
+
 watch(
   () => props.config.defaultAudio.volume,
   (volume) => {
     draftVolume.value = volume
   }
 )
+
+onMounted(() => {
+  removeUpdateListener = api.onUpdateStateChanged((state) => {
+    updateState.value = state
+  })
+  void api
+    .getUpdateState()
+    .then((state) => {
+      updateState.value = state
+    })
+    .catch((error: unknown) => {
+      showOperationNotice('error', error instanceof Error ? error.message : '更新状态读取失败')
+    })
+})
+
+onBeforeUnmount(() => removeUpdateListener?.())
 
 async function run(key: string, action: () => Promise<unknown>): Promise<void> {
   if (busy.has(key)) return
@@ -93,6 +194,23 @@ function setCloseToTray(enabled: boolean): void {
 function setLogLevel(value: string): void {
   const level = value as LogLevel
   void run('log-level', () => api.setLogLevel(level))
+}
+
+function handleUpdateAction(): void {
+  const status = updateState.value?.status
+  if (status === 'available') {
+    void run('update-download', async () => {
+      updateState.value = await api.downloadUpdate()
+    })
+    return
+  }
+  if (status === 'downloaded') {
+    void run('update-install', () => api.installUpdate())
+    return
+  }
+  void run('update-check', async () => {
+    updateState.value = await api.checkForUpdates()
+  })
 }
 
 function setMode(source: CliSource, mode: AudioMode): void {
@@ -398,6 +516,42 @@ function hookLabel(source: CliSource): string {
             {{ isBusy('repair') ? '修复中…' : '立即修复' }}
           </button>
         </div>
+      </div>
+    </article>
+
+    <article class="settings-panel settings-panel--compact update-panel">
+      <div class="section-title">
+        <UiIcon name="refresh" />
+        <h2>软件更新</h2>
+      </div>
+      <div class="update-panel__content">
+        <div class="update-panel__copy">
+          <div class="update-panel__heading">
+            <strong>{{ updateTitle }}</strong>
+            <StatusPill :tone="updateTone">{{ updateStatusLabel }}</StatusPill>
+          </div>
+          <span>{{ updateDescription }}</span>
+          <div v-if="updateState?.status === 'downloading'" class="update-progress">
+            <i :style="{ width: `${updateState.progress ?? 0}%` }" />
+          </div>
+          <details v-if="updateState?.releaseNotes" class="update-release-notes">
+            <summary>查看更新说明</summary>
+            <p>{{ updateState.releaseNotes }}</p>
+          </details>
+        </div>
+        <button
+          class="wide-button general-setting-action update-panel__action"
+          :class="{
+            'is-loading': ['checking', 'downloading', 'installing'].includes(
+              updateState?.status as UpdateStatus
+            )
+          }"
+          :disabled="updateActionDisabled"
+          @click="handleUpdateAction"
+        >
+          <UiIcon :name="updateState?.status === 'downloaded' ? 'check' : 'refresh'" />
+          {{ updateActionLabel }}
+        </button>
       </div>
     </article>
 

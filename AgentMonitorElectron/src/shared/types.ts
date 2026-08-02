@@ -131,6 +131,27 @@ export interface AudioPlayResult {
 
 export type ProjectWebsite = 'github' | 'gitee'
 
+export type UpdateStatus =
+  | 'unsupported'
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'up-to-date'
+  | 'downloading'
+  | 'downloaded'
+  | 'installing'
+  | 'error'
+
+export interface UpdateState {
+  supported: boolean
+  status: UpdateStatus
+  currentVersion: string
+  latestVersion: string | null
+  releaseNotes: string | null
+  progress: number | null
+  error: string | null
+}
+
 export interface AgentMonitorApi {
   minimizeWindow(): void
   toggleMaximizeWindow(): void
@@ -157,12 +178,17 @@ export interface AgentMonitorApi {
   installHook(source: CliSource): Promise<HookStatus>
   repairHook(source: CliSource): Promise<HookStatus>
   getRuntimeState(): Promise<RuntimeState>
+  getUpdateState(): Promise<UpdateState>
+  checkForUpdates(): Promise<UpdateState>
+  downloadUpdate(): Promise<UpdateState>
+  installUpdate(): Promise<void>
   openProjectWebsite(target: ProjectWebsite): Promise<void>
   openLogDirectory(): Promise<void>
   onConfigChanged(callback: (config: AppConfig) => void): () => void
   onRuntimeChanged(callback: (state: RuntimeState) => void): () => void
   onWindowMaximizedChanged(callback: (maximized: boolean) => void): () => void
   onOpenSettings(callback: () => void): () => void
+  onUpdateStateChanged(callback: (state: UpdateState) => void): () => void
   onAudioCommand(callback: (command: AudioPlayCommand) => void): () => void
   reportAudioResult(result: AudioPlayResult): void
   reportRendererError(error: { message: string; stack?: string }): void

@@ -21,7 +21,8 @@ import type {
   LogLevel,
   ProjectWebsite,
   RuntimeState,
-  TurnStoppedEvent
+  TurnStoppedEvent,
+  UpdateState
 } from '../shared/types'
 import { channels } from '../shared/channels'
 import { runHookClient } from '../hook'
@@ -40,6 +41,7 @@ import {
   summarizePath
 } from './logging/logger'
 import { createTrayIcon } from './tray-icon'
+import { UpdateService } from './update/service'
 
 const hookSource = parseHookSource(process.argv)
 
@@ -86,6 +88,7 @@ function startDesktopApplication(): void {
   }
   let quitting = false
   let shutdownStarted = false
+  let installingUpdate = false
   let paths: AppPaths
   let configManager: ConfigManager
   let hookManager: HookManager
@@ -93,6 +96,7 @@ function startDesktopApplication(): void {
   let audioResolver: AudioResolver
   let audioQueue: AudioQueue
   let ipcServer: LocalIpcServer
+  let updateService: UpdateService
   let logger: ReturnType<typeof initializeLogger>
   let lastLoggedConfig: AppConfig | null = null
   let resolveRendererReady: (() => void) | null = null
@@ -130,6 +134,25 @@ function startDesktopApplication(): void {
   const emitRuntime = async (): Promise<void> => {
     mainWindow?.webContents.send(channels.runtimeChanged, await getRuntimeState())
     rebuildTray()
+  }
+
+  const emitUpdateState = (state: UpdateState): void => {
+    mainWindow?.webContents.send(channels.updateStateChanged, state)
+  }
+
+  const prepareUpdateInstall = async (): Promise<void> => {
+    if (installingUpdate) return
+    installingUpdate = true
+    quitting = true
+    shutdownStarted = true
+    audioQueue?.shutdown()
+    try {
+      await ipcServer?.stop()
+    } catch (error) {
+      logger?.error('ipc', 'ipc_stop_failed_for_update', '安装更新前停止 IPC 服务失败', {
+        error: serializeError(error)
+      })
+    }
   }
 
   const emitRuntimeSafely = (traceId?: string): void => {
@@ -545,6 +568,22 @@ function startDesktopApplication(): void {
       assertTrustedFrame(event)
       return getRuntimeState()
     })
+    ipcMain.handle(channels.updateGetState, (event) => {
+      assertTrustedFrame(event)
+      return updateService.getState()
+    })
+    ipcMain.handle(channels.updateCheck, async (event) => {
+      assertTrustedFrame(event)
+      return updateService.checkForUpdates()
+    })
+    ipcMain.handle(channels.updateDownload, async (event) => {
+      assertTrustedFrame(event)
+      return updateService.downloadUpdate()
+    })
+    ipcMain.handle(channels.updateInstall, async (event) => {
+      assertTrustedFrame(event)
+      await updateService.installUpdate()
+    })
     ipcMain.handle(channels.linksOpenProject, async (event, target: ProjectWebsite) => {
       assertTrustedFrame(event)
       if (target !== 'github' && target !== 'gitee') throw new Error('INVALID_PROJECT_WEBSITE')
@@ -561,6 +600,7 @@ function startDesktopApplication(): void {
     // 托盘应用在窗口关闭后继续运行。
   })
   app.on('before-quit', (event) => {
+    if (installingUpdate) return
     if (shutdownStarted) return
     event.preventDefault()
     shutdownStarted = true
@@ -618,8 +658,14 @@ function startDesktopApplication(): void {
         })
       }, logger)
       ipcServer = new LocalIpcServer(paths, onStoppedEvent, logger)
+      updateService = new UpdateService({
+        logger,
+        emitState: emitUpdateState,
+        prepareInstall: prepareUpdateInstall
+      })
       registerIpcHandlers()
       mainWindow = createWindow()
+      updateService.initialize()
       tray = createTray()
       rebuildTray()
       await ipcServer.start()

@@ -122,6 +122,7 @@ jobs:
             AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.exe
             AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.blockmap
             AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.zip
+            AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/latest.yml
           if-no-files-found: error
           retention-days: 7
 

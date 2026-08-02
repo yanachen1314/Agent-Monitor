@@ -986,6 +986,76 @@ button {
   opacity: 0.72;
 }
 
+.update-panel__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 5px 4px;
+  border-top: 1px solid rgba(94, 74, 180, 0.1);
+}
+
+.update-panel__copy {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.update-panel__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-panel__heading strong {
+  color: @ink-strong;
+  font-size: 14px;
+}
+
+.update-panel__copy > span {
+  color: @ink-soft;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.update-panel__action {
+  flex: 0 0 auto;
+}
+
+.update-progress {
+  width: min(420px, 100%);
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(111, 85, 232, 0.12);
+}
+
+.update-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, @violet, @pink);
+  transition: width 180ms ease;
+}
+
+.update-release-notes {
+  color: @ink-soft;
+  font-size: 12px;
+}
+
+.update-release-notes summary {
+  width: fit-content;
+  cursor: pointer;
+  color: @violet-deep;
+}
+
+.update-release-notes p {
+  max-width: 640px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
 .about-panel__content {
   display: grid;
   min-height: 108px;
