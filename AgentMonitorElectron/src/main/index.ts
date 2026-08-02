@@ -31,7 +31,13 @@ import { AudioQueue } from './audio/queue'
 import { EventProcessor } from './events/processor'
 import { LocalIpcServer } from './ipc/server'
 import { HookManager } from './hooks/manager'
-import { initializeLogger } from './logging/logger'
+import {
+  createTraceId,
+  hashIdentifier,
+  initializeLogger,
+  serializeError,
+  summarizePath
+} from './logging/logger'
 import { createTrayIcon } from './tray-icon'
 
 const hookSource = parseHookSource(process.argv)
@@ -87,6 +93,7 @@ function startDesktopApplication(): void {
   let audioQueue: AudioQueue
   let ipcServer: LocalIpcServer
   let logger: ReturnType<typeof initializeLogger>
+  let lastLoggedConfig: AppConfig | null = null
   let resolveRendererReady: (() => void) | null = null
   const rendererReady = new Promise<void>((resolve) => {
     resolveRendererReady = resolve
@@ -99,6 +106,11 @@ function startDesktopApplication(): void {
   }
 
   const emitConfig = (config: AppConfig): void => {
+    const changes = lastLoggedConfig ? describeConfigChanges(lastLoggedConfig, config) : []
+    if (changes.length > 0) {
+      logger.info('config', 'config_changed', '应用配置已更新', { changes })
+    }
+    lastLoggedConfig = structuredClone(config)
     mainWindow?.webContents.send(channels.configChanged, config)
     rebuildTray()
   }
@@ -119,18 +131,65 @@ function startDesktopApplication(): void {
     rebuildTray()
   }
 
-  const onStoppedEvent = async (event: TurnStoppedEvent): Promise<IpcResponse> => {
-    const result = eventProcessor.process(event, configManager.get())
-    logger.info(`收到 ${event.source} 单轮停止事件：${result.code}`)
-    if (result.shouldPlay) {
-      const audio = await audioResolver.resolve(configManager.get(), event.source)
-      void audioQueue.enqueue(audio).catch((error) => {
-        logger.error('音频播放失败', error)
-        eventProcessor.markLatestFailed()
-        void emitRuntime()
+  const emitRuntimeSafely = (traceId?: string): void => {
+    void emitRuntime().catch((error) => {
+      logger.error('runtime', 'runtime_emit_failed', '运行状态广播失败', {
+        traceId,
+        error: serializeError(error)
       })
+    })
+  }
+
+  const onStoppedEvent = async (event: TurnStoppedEvent): Promise<IpcResponse> => {
+    const traceId = event.traceId ?? createTraceId()
+    const normalizedEvent = { ...event, traceId }
+    const config = configManager.get()
+    const startedAt = Date.now()
+    const result = eventProcessor.process(normalizedEvent, config)
+    logger.info('event', 'turn_stopped_processed', '单轮停止事件处理完成', {
+      traceId,
+      source: event.source,
+      resultCode: result.code,
+      shouldPlay: result.shouldPlay,
+      eventDelayMs: Math.max(0, Date.now() - event.timestamp),
+      durationMs: Date.now() - startedAt,
+      sessionIdHash: hashIdentifier(event.sessionId),
+      turnIdHash: hashIdentifier(event.turnId),
+      workspaceName: summarizePath(event.cwd),
+      globalPaused: config.globalPaused,
+      monitorEnabled: config.monitors[event.source].enabled
+    })
+    if (result.shouldPlay) {
+      const audio = await audioResolver.resolve(config, event.source)
+      const audioContext = {
+        traceId,
+        source: event.source,
+        fileName: summarizePath(audio.path),
+        fallbackUsed: audio.fallbackUsed
+      }
+      if (audio.fallbackUsed) {
+        logger.warn(
+          'audio',
+          'audio_fallback_used',
+          '配置的提示音不可用，已回退到内置提示音',
+          audioContext
+        )
+      } else {
+        logger.debug('audio', 'audio_resolved', '提示音解析成功', audioContext)
+      }
+      void audioQueue
+        .enqueue(audio, { traceId, source: event.source, kind: 'notification' })
+        .catch((error) => {
+          logger.error('audio', 'notification_failed', '停止事件提醒播放失败', {
+            traceId,
+            source: event.source,
+            error: serializeError(error)
+          })
+          eventProcessor.markLatestFailed()
+          emitRuntimeSafely(traceId)
+        })
     }
-    void emitRuntime()
+    emitRuntimeSafely(traceId)
     return { ok: true, code: result.code }
   }
 
@@ -154,13 +213,34 @@ function startDesktopApplication(): void {
     })
 
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-    window.webContents.once('did-finish-load', () => resolveRendererReady?.())
+    window.webContents.once('did-finish-load', () => {
+      logger.info('renderer', 'renderer_ready', 'Renderer 页面加载完成')
+      resolveRendererReady?.()
+    })
+    window.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+      logger.error('renderer', 'renderer_load_failed', 'Renderer 页面加载失败', {
+        errorCode,
+        errorDescription
+      })
+    })
+    window.webContents.on('render-process-gone', (_event, details) => {
+      logger.error('renderer', 'renderer_process_gone', 'Renderer 进程异常退出', {
+        reason: details.reason,
+        exitCode: details.exitCode
+      })
+    })
+    window.on('unresponsive', () => {
+      logger.warn('renderer', 'renderer_unresponsive', 'Renderer 无响应')
+    })
     window.webContents.on('will-navigate', (event, url) => {
       const allowed =
         is.dev && process.env.ELECTRON_RENDERER_URL
           ? url.startsWith(process.env.ELECTRON_RENDERER_URL)
           : url.startsWith('file://')
-      if (!allowed) event.preventDefault()
+      if (!allowed) {
+        logger.warn('security', 'renderer_navigation_blocked', '已阻止 Renderer 导航到非信任地址')
+        event.preventDefault()
+      }
     })
     window.on('close', (event) => {
       if (!quitting && configManager.get().closeToTray) {
@@ -241,7 +321,11 @@ function startDesktopApplication(): void {
 
   const previewAudio = async (target: 'default' | CliSource): Promise<void> => {
     const audio = await audioResolver.resolvePreview(configManager.get(), target)
-    await audioQueue.enqueue(audio)
+    await audioQueue.enqueue(audio, {
+      traceId: createTraceId(),
+      ...(target === 'default' ? {} : { source: target }),
+      kind: 'preview'
+    })
   }
 
   const registerIpcHandlers = (): void => {
@@ -364,6 +448,22 @@ function startDesktopApplication(): void {
         audioQueue.handleResult(result)
       }
     })
+    ipcMain.on(channels.loggingRendererError, (event, error: unknown) => {
+      if (!mainWindow || event.sender.id !== mainWindow.webContents.id) return
+      const candidate = error as { message?: unknown; stack?: unknown }
+      logger.error('renderer', 'renderer_unhandled_error', 'Renderer 发生未捕获异常', {
+        error: {
+          name: 'RendererError',
+          message:
+            typeof candidate?.message === 'string'
+              ? candidate.message.slice(0, 2_000)
+              : 'Unknown renderer error',
+          ...(typeof candidate?.stack === 'string'
+            ? { stack: candidate.stack.slice(0, 10_000) }
+            : {})
+        }
+      })
+    })
     ipcMain.handle(channels.hooksGetStatus, async (event) => {
       assertTrustedFrame(event)
       return hookManager.getStatuses()
@@ -381,15 +481,41 @@ function startDesktopApplication(): void {
     })
     ipcMain.handle(channels.hooksInstall, async (event, source: CliSource) => {
       assertTrustedFrame(event)
-      const status = await hookManager.install(source)
-      void emitRuntime()
-      return status
+      const validSource = assertCliSource(source)
+      try {
+        const status = await hookManager.install(validSource)
+        logger.info('hook', 'hook_installed', '提醒 Hook 安装完成', {
+          source: validSource,
+          state: status.state
+        })
+        emitRuntimeSafely()
+        return status
+      } catch (error) {
+        logger.error('hook', 'hook_install_failed', '提醒 Hook 安装失败', {
+          source: validSource,
+          error: serializeError(error)
+        })
+        throw error
+      }
     })
     ipcMain.handle(channels.hooksRepair, async (event, source: CliSource) => {
       assertTrustedFrame(event)
-      const status = await hookManager.repair(source)
-      void emitRuntime()
-      return status
+      const validSource = assertCliSource(source)
+      try {
+        const status = await hookManager.repair(validSource)
+        logger.info('hook', 'hook_repaired', '提醒 Hook 修复完成', {
+          source: validSource,
+          state: status.state
+        })
+        emitRuntimeSafely()
+        return status
+      } catch (error) {
+        logger.error('hook', 'hook_repair_failed', '提醒 Hook 修复失败', {
+          source: validSource,
+          error: serializeError(error)
+        })
+        throw error
+      }
     })
     ipcMain.handle(channels.runtimeGet, async (event) => {
       assertTrustedFrame(event)
@@ -415,54 +541,95 @@ function startDesktopApplication(): void {
     event.preventDefault()
     shutdownStarted = true
     quitting = true
+    logger?.info('app', 'app_quitting', 'Agent Monitor 正在退出')
     audioQueue?.shutdown()
     void ipcServer
       ?.stop()
-      .catch(() => undefined)
+      .catch((error) => {
+        logger?.error('ipc', 'ipc_stop_failed', 'IPC 服务停止失败', {
+          error: serializeError(error)
+        })
+      })
       .finally(() => app.exit(0))
   })
 
-  void app.whenReady().then(async () => {
-    electronApp.setAppUserModelId('com.agentmonitor.desktop')
-    paths = createAppPaths()
-    logger = initializeLogger(paths)
-    configManager = new ConfigManager(paths)
-    const initialConfig = await configManager.initialize()
-    app.setLoginItemSettings({
-      openAtLogin: initialConfig.autoStart,
-      args: ['--hidden']
-    })
-    hookManager = new HookManager(paths)
-    await refreshConfiguredHooks(hookManager).catch((error) => {
-      logger.error('刷新 Hook 命令失败', error)
-    })
-    eventProcessor = new EventProcessor()
-    audioResolver = new AudioResolver(paths)
-    audioQueue = new AudioQueue(async (command) => {
-      await rendererReady
-      const content = await readFile(command.path)
-      const extension = extname(command.path).toLowerCase()
-      const mime =
-        extension === '.mp3' ? 'audio/mpeg' : extension === '.ogg' ? 'audio/ogg' : 'audio/wav'
-      mainWindow?.webContents.send(channels.audioPlay, {
-        ...command,
-        path: `data:${mime};base64,${content.toString('base64')}`
+  void app
+    .whenReady()
+    .then(async () => {
+      electronApp.setAppUserModelId('com.agentmonitor.desktop')
+      paths = createAppPaths()
+      logger = initializeLogger(paths)
+      registerGlobalErrorLogging(logger)
+      logger.info('app', 'app_starting', 'Agent Monitor 正在启动', {
+        electronVersion: process.versions.electron,
+        nodeVersion: process.versions.node,
+        packaged: app.isPackaged,
+        hidden: process.argv.includes('--hidden')
+      })
+      configManager = new ConfigManager(paths, logger)
+      const initialConfig = await configManager.initialize()
+      lastLoggedConfig = structuredClone(initialConfig)
+      app.setLoginItemSettings({
+        openAtLogin: initialConfig.autoStart,
+        args: ['--hidden']
+      })
+      hookManager = new HookManager(paths)
+      await refreshConfiguredHooks(hookManager, logger).catch((error) => {
+        logger.error('hook', 'hook_refresh_failed', '刷新 Hook 命令失败', {
+          error: serializeError(error)
+        })
+      })
+      eventProcessor = new EventProcessor()
+      audioResolver = new AudioResolver(paths)
+      audioQueue = new AudioQueue(async (command) => {
+        await rendererReady
+        const content = await readFile(command.path)
+        const extension = extname(command.path).toLowerCase()
+        const mime =
+          extension === '.mp3' ? 'audio/mpeg' : extension === '.ogg' ? 'audio/ogg' : 'audio/wav'
+        mainWindow?.webContents.send(channels.audioPlay, {
+          ...command,
+          path: `data:${mime};base64,${content.toString('base64')}`
+        })
+      }, logger)
+      ipcServer = new LocalIpcServer(paths, onStoppedEvent, logger)
+      registerIpcHandlers()
+      mainWindow = createWindow()
+      tray = createTray()
+      rebuildTray()
+      await ipcServer.start()
+      await emitRuntime()
+      logger.info('app', 'app_ready', 'Agent Monitor 已启动', {
+        transport: ipcServer.getRuntime()?.transport,
+        monitors: {
+          claude: initialConfig.monitors.claude.enabled,
+          codex: initialConfig.monitors.codex.enabled
+        },
+        globalPaused: initialConfig.globalPaused
       })
     })
-    ipcServer = new LocalIpcServer(paths, onStoppedEvent)
-    registerIpcHandlers()
-    mainWindow = createWindow()
-    tray = createTray()
-    rebuildTray()
-    await ipcServer.start()
-    await emitRuntime()
-    logger.info('Agent Monitor 已启动')
-  })
+    .catch((error) => {
+      if (logger) {
+        logger.error('app', 'app_start_failed', 'Agent Monitor 启动失败', {
+          error: serializeError(error)
+        })
+      } else {
+        process.stderr.write(`Agent Monitor 启动失败：${String(error)}\n`)
+      }
+      app.exit(1)
+    })
 }
 
-async function refreshConfiguredHooks(hookManager: HookManager): Promise<void> {
+async function refreshConfiguredHooks(
+  hookManager: HookManager,
+  logger: ReturnType<typeof initializeLogger>
+): Promise<void> {
   for (const source of ['claude', 'codex'] as const) {
     const status = await hookManager.getStatus(source)
+    logger.info('hook', 'hook_status_checked', '提醒 Hook 状态检查完成', {
+      source,
+      state: status.state
+    })
     if (status.state === 'configured') await hookManager.repair(source)
   }
 }
@@ -476,4 +643,52 @@ function parseHookSource(args: string[]): CliSource | null {
 function assertCliSource(value: unknown): CliSource {
   if (value === 'claude' || value === 'codex') return value
   throw new Error('INVALID_CLI_SOURCE')
+}
+
+function registerGlobalErrorLogging(logger: ReturnType<typeof initializeLogger>): void {
+  process.on('uncaughtExceptionMonitor', (error, origin) => {
+    logger.error('app', 'uncaught_exception', '主进程发生未捕获异常', {
+      severity: 'critical',
+      recoverable: false,
+      origin,
+      error: serializeError(error)
+    })
+  })
+  process.on('unhandledRejection', (reason) => {
+    logger.error('app', 'unhandled_rejection', '主进程发生未处理的 Promise 拒绝', {
+      severity: 'critical',
+      error: serializeError(reason)
+    })
+  })
+}
+
+function describeConfigChanges(previous: AppConfig, next: AppConfig): string[] {
+  const changes: string[] = []
+  const compare = (name: string, before: unknown, after: unknown): void => {
+    if (before !== after) changes.push(name)
+  }
+  compare('globalPaused', previous.globalPaused, next.globalPaused)
+  compare('autoStart', previous.autoStart, next.autoStart)
+  compare('closeToTray', previous.closeToTray, next.closeToTray)
+  compare('defaultAudio.source', previous.defaultAudio.source, next.defaultAudio.source)
+  compare('defaultAudio.path', previous.defaultAudio.path, next.defaultAudio.path)
+  compare('defaultAudio.volume', previous.defaultAudio.volume, next.defaultAudio.volume)
+  for (const source of ['claude', 'codex'] as const) {
+    compare(
+      `monitors.${source}.enabled`,
+      previous.monitors[source].enabled,
+      next.monitors[source].enabled
+    )
+    compare(
+      `monitors.${source}.audioMode`,
+      previous.monitors[source].audioMode,
+      next.monitors[source].audioMode
+    )
+    compare(
+      `monitors.${source}.customAudioPath`,
+      previous.monitors[source].customAudioPath,
+      next.monitors[source].customAudioPath
+    )
+  }
+  return changes
 }

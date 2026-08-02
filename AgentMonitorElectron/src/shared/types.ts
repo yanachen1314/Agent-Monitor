@@ -25,6 +25,7 @@ export interface AppConfig {
 
 export interface TurnStoppedEvent {
   version: 1
+  traceId?: string
   source: CliSource
   eventType: 'turnStopped'
   sessionId: string | null
@@ -160,4 +161,5 @@ export interface AgentMonitorApi {
   onWindowMaximizedChanged(callback: (maximized: boolean) => void): () => void
   onAudioCommand(callback: (command: AudioPlayCommand) => void): () => void
   reportAudioResult(result: AudioPlayResult): void
+  reportRendererError(error: { message: string; stack?: string }): void
 }

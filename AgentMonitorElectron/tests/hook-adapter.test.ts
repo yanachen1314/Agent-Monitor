@@ -11,6 +11,7 @@ describe('Hook adapter', () => {
     } as never)
     expect(event).toEqual({
       version: 1,
+      traceId: expect.stringMatching(/^evt-/),
       source: 'claude',
       eventType: 'turnStopped',
       sessionId: 'claude-session',

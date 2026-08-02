@@ -35,6 +35,7 @@ export const appConfigSchema = z.object({
 
 export const turnStoppedEventSchema = z.object({
   version: z.literal(1),
+  traceId: z.string().min(8).max(64).optional(),
   source: cliSourceSchema,
   eventType: z.literal('turnStopped'),
   sessionId: z.string().max(256).nullable(),

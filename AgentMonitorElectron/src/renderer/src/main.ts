@@ -5,6 +5,21 @@ import type { AudioPlayCommand } from '../../shared/types'
 
 let activeAudio: HTMLAudioElement | null = null
 
+window.addEventListener('error', (event) => {
+  window.agentMonitor.reportRendererError({
+    message: event.message || 'Renderer 未捕获异常',
+    ...(event.error instanceof Error && event.error.stack ? { stack: event.error.stack } : {})
+  })
+})
+
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason
+  window.agentMonitor.reportRendererError({
+    message: reason instanceof Error ? reason.message : String(reason),
+    ...(reason instanceof Error && reason.stack ? { stack: reason.stack } : {})
+  })
+})
+
 window.agentMonitor.onAudioCommand((command: AudioPlayCommand) => {
   activeAudio?.pause()
   const normalized = command.path.replaceAll('\\', '/')

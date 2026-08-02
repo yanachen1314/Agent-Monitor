@@ -29,5 +29,6 @@ export const channels = {
   runtimeGet: 'runtime:get',
   runtimeChanged: 'runtime:changed',
   linksOpenProject: 'links:open-project',
-  logsOpenDirectory: 'logs:open-directory'
+  logsOpenDirectory: 'logs:open-directory',
+  loggingRendererError: 'logging:renderer-error'
 } as const

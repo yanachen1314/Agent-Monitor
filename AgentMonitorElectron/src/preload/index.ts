@@ -64,7 +64,8 @@ const api: AgentMonitorApi = {
     ipcRenderer.on(channels.audioPlay, listener)
     return () => ipcRenderer.removeListener(channels.audioPlay, listener)
   },
-  reportAudioResult: (result: AudioPlayResult) => ipcRenderer.send(channels.audioResult, result)
+  reportAudioResult: (result: AudioPlayResult) => ipcRenderer.send(channels.audioResult, result),
+  reportRendererError: (error) => ipcRenderer.send(channels.loggingRendererError, error)
 }
 
 contextBridge.exposeInMainWorld('agentMonitor', api)

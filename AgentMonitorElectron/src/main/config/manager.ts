@@ -2,6 +2,8 @@ import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 
 import { basename, dirname, extname, join, parse } from 'node:path'
 import type { AppConfig, AudioLibraryItem, AudioMode, CliSource } from '../../shared/types'
 import type { AppPaths } from '../paths'
+import type { AppLogger } from '../logging/logger'
+import { serializeError } from '../logging/logger'
 import { appConfigSchema } from './schema'
 
 const defaultConfig: AppConfig = {
@@ -26,7 +28,10 @@ export class ConfigManager {
   private config: AppConfig = structuredClone(defaultConfig)
   private writeChain: Promise<void> = Promise.resolve()
 
-  constructor(private readonly paths: AppPaths) {}
+  constructor(
+    private readonly paths: AppPaths,
+    private readonly logger?: AppLogger
+  ) {}
 
   async initialize(): Promise<AppConfig> {
     await Promise.all([
@@ -39,9 +44,23 @@ export class ConfigManager {
     try {
       const raw = await readFile(this.paths.configFile, 'utf8')
       this.config = appConfigSchema.parse(JSON.parse(raw)) as AppConfig
+      this.logger?.info('config', 'config_loaded', '配置文件加载成功', {
+        configVersion: this.config.version
+      })
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        await this.backupDamagedConfig().catch(() => undefined)
+        this.logger?.warn('config', 'config_invalid', '配置文件无效，将恢复默认配置', {
+          error: serializeError(error)
+        })
+        await this.backupDamagedConfig().then(
+          () => this.logger?.info('config', 'config_backup_created', '损坏配置已备份'),
+          (backupError) =>
+            this.logger?.error('config', 'config_backup_failed', '损坏配置备份失败', {
+              error: serializeError(backupError)
+            })
+        )
+      } else {
+        this.logger?.info('config', 'config_default_created', '未找到配置文件，将创建默认配置')
       }
       this.config = structuredClone(defaultConfig)
       await this.persist()
@@ -238,7 +257,15 @@ export class ConfigManager {
       await writeFile(temporary, content, 'utf8')
       await rename(temporary, this.paths.configFile)
     })
-    await this.writeChain
+    try {
+      await this.writeChain
+      this.logger?.debug('config', 'config_persisted', '配置已持久化')
+    } catch (error) {
+      this.logger?.error('config', 'config_persist_failed', '配置持久化失败', {
+        error: serializeError(error)
+      })
+      throw error
+    }
   }
 
   private async backupDamagedConfig(): Promise<void> {

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { randomUUID } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
@@ -11,6 +11,7 @@ import type {
 } from '../shared/types'
 
 const MAX_STDIN_BYTES = 256 * 1024
+const MAX_DIAGNOSTIC_BYTES = 100 * 1024 * 1024
 const RUNTIME_RECOVERY_TIMEOUT_MS = 4_000
 const RUNTIME_RECOVERY_INTERVAL_MS = 100
 
@@ -39,8 +40,8 @@ export async function runHookClient(
     const event = adaptEvent(source, payload)
     try {
       return await sendEvent(await readRuntime(runtimeFile), event)
-    } catch {
-      if (!options.recoverRuntime) return null
+    } catch (error) {
+      if (!options.recoverRuntime) throw error
       await options.recoverRuntime()
       return await sendEventAfterRecovery(runtimeFile, event, options)
     }
@@ -55,6 +56,7 @@ export async function runHookClient(
 export function adaptEvent(source: CliSource, payload: HookPayload): TurnStoppedEvent {
   return {
     version: 1,
+    traceId: `evt-${randomUUID()}`,
     source,
     eventType: 'turnStopped',
     sessionId: stringOrNull(payload.session_id ?? payload.sessionId),
@@ -173,7 +175,7 @@ async function sendEventAfterRecovery(
   const timeout = options.recoveryTimeoutMs ?? RUNTIME_RECOVERY_TIMEOUT_MS
   const interval = options.recoveryIntervalMs ?? RUNTIME_RECOVERY_INTERVAL_MS
   const deadline = Date.now() + timeout
-  let lastError: unknown = new Error('RUNTIME_RECOVERY_FAILED')
+  let lastError: unknown
 
   do {
     try {
@@ -184,7 +186,7 @@ async function sendEventAfterRecovery(
     }
   } while (Date.now() < deadline)
 
-  throw lastError
+  throw lastError ?? new Error('RUNTIME_RECOVERY_FAILED')
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -195,10 +197,14 @@ async function writeHookDiagnostic(runtimeFile: string, message: string): Promis
   try {
     const directory = dirname(runtimeFile)
     await mkdir(directory, { recursive: true })
-    await writeFile(join(directory, 'hook-error.log'), `${new Date().toISOString()} ${message}\n`, {
-      encoding: 'utf8',
-      mode: 0o600
-    })
+    const diagnosticPath = join(directory, 'hook-error.log')
+    const line = `${new Date().toISOString()} [error] component=hook event=hook_client_failed ${message}\n`
+    const currentSize = await stat(diagnosticPath)
+      .then((stats) => stats.size)
+      .catch(() => 0)
+    const write =
+      currentSize + Buffer.byteLength(line, 'utf8') > MAX_DIAGNOSTIC_BYTES ? writeFile : appendFile
+    await write(diagnosticPath, line, { encoding: 'utf8', mode: 0o600 })
   } catch {
     // 诊断写入不能影响 Hook 退出。
   }

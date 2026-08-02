@@ -1,11 +1,108 @@
+import { createHash, randomUUID } from 'node:crypto'
+import { basename } from 'node:path'
+import { app } from 'electron'
 import log from 'electron-log/main'
 import type { AppPaths } from '../paths'
 
-export function initializeLogger(paths: AppPaths): typeof log {
+export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error'
+export type LogContext = Record<string, unknown>
+
+export interface AppLogger {
+  debug(component: string, event: string, message: string, context?: LogContext): void
+  info(component: string, event: string, message: string, context?: LogContext): void
+  warn(component: string, event: string, message: string, context?: LogContext): void
+  error(component: string, event: string, message: string, context?: LogContext): void
+}
+
+const REDACTED = '[REDACTED]'
+const sensitiveKeyPattern = /token|password|secret|authorization|cookie/i
+
+export function initializeLogger(paths: AppPaths): AppLogger {
   log.initialize()
   log.transports.file.resolvePathFn = () => `${paths.logDir}/agent-monitor.log`
-  log.transports.file.maxSize = 2 * 1024 * 1024
+  log.transports.file.maxSize = 100 * 1024 * 1024
+  log.transports.file.level = process.env.AGENT_MONITOR_LOG_LEVEL === 'debug' ? 'debug' : 'info'
+  log.transports.file.format = ({ data }) => data
   log.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : 'info'
-  log.transports.file.level = 'info'
-  return log
+
+  const write = (
+    level: AppLogLevel,
+    component: string,
+    event: string,
+    message: string,
+    context: LogContext = {}
+  ): void => {
+    const record = {
+      timestamp: new Date().toISOString(),
+      level,
+      component,
+      event,
+      message,
+      pid: process.pid,
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      ...(sanitizeLogValue(context) as LogContext)
+    }
+    log[level](JSON.stringify(record))
+  }
+
+  return {
+    debug: (component, event, message, context) =>
+      write('debug', component, event, message, context),
+    info: (component, event, message, context) => write('info', component, event, message, context),
+    warn: (component, event, message, context) => write('warn', component, event, message, context),
+    error: (component, event, message, context) =>
+      write('error', component, event, message, context)
+  }
+}
+
+export function createTraceId(): string {
+  return `evt-${randomUUID()}`
+}
+
+export function hashIdentifier(value: string | null | undefined): string | null {
+  if (!value) return null
+  return createHash('sha256').update(value).digest('hex').slice(0, 12)
+}
+
+export function summarizePath(value: string | null | undefined): string | null {
+  if (!value) return null
+  return basename(value.replaceAll('\\', '/')) || null
+}
+
+export function serializeError(error: unknown): LogContext {
+  if (!(error instanceof Error)) {
+    return { name: 'UnknownError', message: String(error) }
+  }
+
+  const nodeError = error as NodeJS.ErrnoException
+  return {
+    name: error.name,
+    message: error.message,
+    ...(nodeError.code ? { code: nodeError.code } : {}),
+    ...(error.stack ? { stack: error.stack } : {}),
+    ...(error.cause ? { cause: serializeError(error.cause) } : {})
+  }
+}
+
+function sanitizeLogValue(value: unknown, key = '', seen = new WeakSet<object>()): unknown {
+  if (sensitiveKeyPattern.test(key)) return REDACTED
+  if (value === null || value === undefined) return value
+  if (value instanceof Error) return serializeError(value)
+  if (typeof value === 'bigint') return value.toString()
+  if (typeof value !== 'object') return value
+  if (seen.has(value)) return '[Circular]'
+  seen.add(value)
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLogValue(item, key, seen))
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([entryKey, entryValue]) => [
+      entryKey,
+      sanitizeLogValue(entryValue, entryKey, seen)
+    ])
+  )
 }
