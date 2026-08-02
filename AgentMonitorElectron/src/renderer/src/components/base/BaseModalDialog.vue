@@ -55,8 +55,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </template>
 
 <style scoped lang="less">
-@import '../assets/styles/tokens.less';
-@import '../assets/styles/mixins.less';
+@import '../../assets/styles/tokens.less';
+@import '../../assets/styles/mixins.less';
 
 .base-modal__backdrop {
   position: fixed;

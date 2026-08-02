@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import type { AudioLibraryItem } from '../../../shared/types'
-import BaseModalDialog from '../components/BaseModalDialog.vue'
+import BaseModalDialog from '../components/base/BaseModalDialog.vue'
 import UiIcon from '../components/UiIcon.vue'
 
 const emit = defineEmits<{ back: [] }>()

@@ -196,7 +196,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="less">
-@import '../assets/styles/tokens.less';
+@import '../../assets/styles/tokens.less';
 
 .base-select {
   position: relative;
