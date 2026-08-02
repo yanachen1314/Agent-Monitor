@@ -3,6 +3,7 @@ export const channels = {
   windowToggleMaximize: 'window:toggle-maximize',
   windowGetMaximized: 'window:get-maximized',
   windowMaximizedChanged: 'window:maximized-changed',
+  windowOpenSettings: 'window:open-settings',
   windowClose: 'window:close',
   configGet: 'config:get',
   configSetMonitor: 'config:set-monitor',

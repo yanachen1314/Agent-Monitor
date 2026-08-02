@@ -25,6 +25,7 @@ const subtitle = computed(() =>
 )
 
 onMounted(async () => {
+  cleanups.push(desktop.onOpenSettings(() => (activeView.value = 'settings')))
   try {
     const [nextConfig, nextRuntime, maximized] = await Promise.all([
       desktop.getConfig(),

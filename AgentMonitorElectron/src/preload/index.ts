@@ -59,6 +59,11 @@ const api: AgentMonitorApi = {
     ipcRenderer.on(channels.windowMaximizedChanged, listener)
     return () => ipcRenderer.removeListener(channels.windowMaximizedChanged, listener)
   },
+  onOpenSettings: (callback) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(channels.windowOpenSettings, listener)
+    return () => ipcRenderer.removeListener(channels.windowOpenSettings, listener)
+  },
   onAudioCommand: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, command: AudioPlayCommand): void =>
       callback(command)

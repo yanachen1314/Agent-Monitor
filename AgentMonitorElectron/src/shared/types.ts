@@ -162,6 +162,7 @@ export interface AgentMonitorApi {
   onConfigChanged(callback: (config: AppConfig) => void): () => void
   onRuntimeChanged(callback: (state: RuntimeState) => void): () => void
   onWindowMaximizedChanged(callback: (maximized: boolean) => void): () => void
+  onOpenSettings(callback: () => void): () => void
   onAudioCommand(callback: (command: AudioPlayCommand) => void): () => void
   reportAudioResult(result: AudioPlayResult): void
   reportRendererError(error: { message: string; stack?: string }): void

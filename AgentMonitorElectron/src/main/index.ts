@@ -277,6 +277,19 @@ function startDesktopApplication(): void {
     mainWindow.focus()
   }
 
+  const openSettings = (): void => {
+    if (!mainWindow) return
+    showMainWindow()
+    const sendOpenSettings = (): void => {
+      mainWindow?.webContents.send(channels.windowOpenSettings)
+    }
+    if (mainWindow.webContents.isLoadingMainFrame()) {
+      mainWindow.webContents.once('did-finish-load', sendOpenSettings)
+    } else {
+      sendOpenSettings()
+    }
+  }
+
   const rebuildTray = (): void => {
     if (!tray || !configManager) return
     const config = configManager.get()
@@ -294,7 +307,7 @@ function startDesktopApplication(): void {
           label: '测试提示音',
           click: () => void previewAudio('default')
         },
-        { label: '打开设置', click: showMainWindow },
+        { label: '打开设置', click: openSettings },
         {
           label: config.globalPaused ? '恢复全部监控' : '暂停全部监控',
           click: async () => {
