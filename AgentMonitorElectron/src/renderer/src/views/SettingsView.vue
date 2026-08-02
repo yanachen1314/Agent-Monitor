@@ -10,6 +10,7 @@ import type {
 } from '../../../shared/types'
 import { withMinimumDuration } from '../../../shared/minimum-duration'
 import BaseModalDialog from '../components/BaseModalDialog.vue'
+import BaseSelect from '../components/BaseSelect.vue'
 import BaseToggle from '../components/BaseToggle.vue'
 import OperationNotice from '../components/OperationNotice.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -26,6 +27,12 @@ const emit = defineEmits<{
 const api = window.agentMonitor
 const appVersion = `v${__APP_VERSION__}`
 const MINIMUM_REPAIR_LOADING_MS = 500
+const logLevelOptions = [
+  { value: 'debug', label: 'Debug' },
+  { value: 'info', label: 'Info' },
+  { value: 'warn', label: 'Warn' },
+  { value: 'error', label: 'Error' }
+]
 const busy = reactive(new Set<string>())
 const draftVolume = ref(props.config.defaultAudio.volume)
 const hookPreview = ref<HookPreview | null>(null)
@@ -82,8 +89,8 @@ function setCloseToTray(enabled: boolean): void {
   void run('close-to-tray', () => api.setCloseToTray(enabled))
 }
 
-function setLogLevel(event: Event): void {
-  const level = (event.target as HTMLSelectElement).value as LogLevel
+function setLogLevel(value: string): void {
+  const level = value as LogLevel
   void run('log-level', () => api.setLogLevel(level))
 }
 
@@ -348,19 +355,14 @@ function hookLabel(source: CliSource): string {
             <strong>日志记录级别</strong>
             <span>仅记录所选级别及更严重的日志，排查问题时建议选择 Debug</span>
           </div>
-          <div class="log-level-select">
-            <select
-              aria-label="日志记录级别"
-              :value="config.logLevel"
-              :disabled="isBusy('log-level')"
-              @change="setLogLevel"
-            >
-              <option value="debug">Debug</option>
-              <option value="info">Info</option>
-              <option value="warn">Warn</option>
-              <option value="error">Error</option>
-            </select>
-          </div>
+          <BaseSelect
+            class="log-level-select"
+            label="日志记录级别"
+            :model-value="config.logLevel"
+            :options="logLevelOptions"
+            :disabled="isBusy('log-level')"
+            @update:model-value="setLogLevel"
+          />
         </div>
 
         <div class="general-setting-row">
