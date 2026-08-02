@@ -100,6 +100,20 @@ jobs:
         run: npm run build:win
         env:
           AGENT_MONITOR_GCC: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin\gcc.exe
+      - name: Archive unpacked Windows app
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          $releaseDirectory = Join-Path (Get-Location) "release\$env:RELEASE_VERSION"
+          $unpackedDirectory = Join-Path $releaseDirectory 'win-unpacked'
+          $archivePath = Join-Path $releaseDirectory "Agent.Monitor-$env:RELEASE_VERSION-Windows-x64-unpacked.zip"
+
+          if (-not (Test-Path -LiteralPath $unpackedDirectory -PathType Container)) {
+            throw "Windows unpacked directory not found: $unpackedDirectory"
+          }
+
+          Compress-Archive -LiteralPath $unpackedDirectory -DestinationPath $archivePath -CompressionLevel Optimal -Force
       - name: Upload Windows release files
         uses: actions/upload-artifact@v6
         with:
@@ -107,6 +121,7 @@ jobs:
           path: |
             AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.exe
             AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.blockmap
+            AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.zip
           if-no-files-found: error
           retention-days: 7
 
