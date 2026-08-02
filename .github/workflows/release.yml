@@ -20,10 +20,10 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - name: Resolve and validate version
@@ -52,8 +52,8 @@ jobs:
       run:
         working-directory: AgentMonitorElectron
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -73,8 +73,8 @@ jobs:
       run:
         working-directory: AgentMonitorElectron
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -91,7 +91,7 @@ jobs:
         env:
           AGENT_MONITOR_GCC: C:\msys64\mingw64\bin\gcc.exe
       - name: Upload Windows release files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-windows
           path: |
@@ -111,8 +111,8 @@ jobs:
       run:
         working-directory: AgentMonitorElectron
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -127,7 +127,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       - name: Upload macOS release files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-macos
           path: AgentMonitorElectron/release/${{ needs.prepare.outputs.version }}/*.dmg
@@ -150,7 +150,7 @@ jobs:
       contents: write
     steps:
       - name: Download release files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: release-*
           path: release-assets
