@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
-
-interface BaseSelectOption {
-  value: string
-  label: string
-}
+import type { BaseSelectOption } from './base-select'
 
 const props = defineProps<{
   modelValue: string
@@ -30,6 +26,10 @@ const selectedOption = computed(() => props.options[selectedIndex.value])
 const activeOptionId = computed(() =>
   open.value ? `${listboxId}-option-${activeIndex.value}` : undefined
 )
+
+function optionStyle(option?: BaseSelectOption): Record<string, string> {
+  return option?.color ? { '--base-select-option-color': option.color } : {}
+}
 
 function openList(): void {
   if (props.disabled || props.options.length === 0) return
@@ -150,6 +150,7 @@ onBeforeUnmount(() => {
       :aria-controls="listboxId"
       :aria-activedescendant="activeOptionId"
       :disabled="disabled"
+      :style="optionStyle(selectedOption)"
       @click="toggleList"
       @keydown="handleKeydown"
     >
@@ -180,6 +181,7 @@ onBeforeUnmount(() => {
             }"
             role="option"
             :aria-selected="option.value === modelValue"
+            :style="optionStyle(option)"
             @mouseenter="activeIndex = index"
             @mousedown.prevent
             @click="selectOption(index)"
@@ -216,7 +218,7 @@ onBeforeUnmount(() => {
   box-shadow:
     0 7px 20px rgba(87, 66, 181, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
-  color: @violet-deep;
+  color: var(--base-select-option-color, @violet-deep);
   font: inherit;
   font-size: 13px;
   font-weight: 650;
@@ -253,8 +255,8 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 8px;
   flex: 0 0 auto;
-  border-right: 2px solid @violet;
-  border-bottom: 2px solid @violet;
+  border-right: 2px solid var(--base-select-option-color, @violet);
+  border-bottom: 2px solid var(--base-select-option-color, @violet);
   transform: translateY(-2px) rotate(45deg);
   transition: transform 200ms @ease-out;
 }
@@ -303,13 +305,13 @@ onBeforeUnmount(() => {
 }
 
 .base-select__option.is-active {
-  color: @violet-deep;
-  background: rgba(111, 85, 232, 0.09);
+  color: var(--base-select-option-color, @violet-deep);
+  background: color-mix(in srgb, var(--base-select-option-color, @violet) 10%, transparent);
   transform: translateX(1px);
 }
 
 .base-select__option.is-selected {
-  color: @violet-deep;
+  color: var(--base-select-option-color, @violet-deep);
   font-weight: 680;
 }
 
@@ -318,7 +320,7 @@ onBeforeUnmount(() => {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: linear-gradient(135deg, @violet, @blue);
+  background: var(--base-select-option-color, @violet);
   box-shadow: 0 3px 9px rgba(91, 68, 201, 0.24);
 }
 

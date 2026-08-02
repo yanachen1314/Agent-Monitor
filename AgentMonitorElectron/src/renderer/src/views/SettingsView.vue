@@ -11,6 +11,7 @@ import type {
 import { withMinimumDuration } from '../../../shared/minimum-duration'
 import BaseModalDialog from '../components/BaseModalDialog.vue'
 import BaseSelect from '../components/BaseSelect.vue'
+import type { BaseSelectOption } from '../components/base-select'
 import BaseToggle from '../components/BaseToggle.vue'
 import OperationNotice from '../components/OperationNotice.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -28,11 +29,11 @@ const api = window.agentMonitor
 const appVersion = `v${__APP_VERSION__}`
 const MINIMUM_REPAIR_LOADING_MS = 500
 const logLevelOptions = [
-  { value: 'debug', label: 'Debug' },
-  { value: 'info', label: 'Info' },
-  { value: 'warn', label: 'Warn' },
-  { value: 'error', label: 'Error' }
-]
+  { value: 'debug', label: 'Debug', color: '#3f7fe5' },
+  { value: 'info', label: 'Info', color: '#6f55e8' },
+  { value: 'warn', label: 'Warn', color: '#c47a18' },
+  { value: 'error', label: 'Error', color: '#d44d75' }
+] satisfies BaseSelectOption[]
 const busy = reactive(new Set<string>())
 const draftVolume = ref(props.config.defaultAudio.volume)
 const hookPreview = ref<HookPreview | null>(null)
