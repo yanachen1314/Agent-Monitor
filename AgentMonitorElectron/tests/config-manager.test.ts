@@ -40,13 +40,16 @@ describe('ConfigManager', () => {
     const initial = await manager.initialize()
     expect(initial.monitors.claude.enabled).toBe(true)
     expect(initial.globalPaused).toBe(false)
+    expect(initial.logLevel).toBe('info')
 
     await manager.setGlobalPaused(true)
     await manager.setDefaultVolume(2)
+    await manager.setLogLevel('warn')
 
     const persisted = JSON.parse(await readFile(paths.configFile, 'utf8'))
     expect(persisted.globalPaused).toBe(true)
     expect(persisted.defaultAudio.volume).toBe(1)
+    expect(persisted.logLevel).toBe('warn')
   })
 
   it('损坏配置会备份并恢复默认值', async () => {

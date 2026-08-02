@@ -18,6 +18,7 @@ import type {
   AudioPlayResult,
   CliSource,
   IpcResponse,
+  LogLevel,
   ProjectWebsite,
   RuntimeState,
   TurnStoppedEvent
@@ -392,6 +393,16 @@ function startDesktopApplication(): void {
       emitConfig(await configManager.setAutoStart(Boolean(enabled)))
       return configManager.get()
     })
+    ipcMain.handle(channels.configSetLogLevel, async (event, level: LogLevel) => {
+      assertTrustedFrame(event)
+      if (!['debug', 'info', 'warn', 'error'].includes(level)) {
+        throw new Error('INVALID_LOG_LEVEL')
+      }
+      const config = await configManager.setLogLevel(level)
+      logger.setLevel(config.logLevel)
+      emitConfig(config)
+      return config
+    })
     ipcMain.handle(channels.audioImport, async (event, target: 'default' | CliSource) => {
       assertTrustedFrame(event)
       if (!['default', 'claude', 'codex'].includes(target)) {
@@ -558,7 +569,7 @@ function startDesktopApplication(): void {
     .then(async () => {
       electronApp.setAppUserModelId('com.agentmonitor.desktop')
       paths = createAppPaths()
-      logger = initializeLogger(paths)
+      logger = initializeLogger(paths, await readConfiguredLogLevel(paths.configFile))
       registerGlobalErrorLogging(logger)
       logger.info('app', 'app_starting', 'Agent Monitor 正在启动', {
         electronVersion: process.versions.electron,
@@ -568,6 +579,7 @@ function startDesktopApplication(): void {
       })
       configManager = new ConfigManager(paths, logger)
       const initialConfig = await configManager.initialize()
+      logger.setLevel(initialConfig.logLevel)
       lastLoggedConfig = structuredClone(initialConfig)
       app.setLoginItemSettings({
         openAtLogin: initialConfig.autoStart,
@@ -645,6 +657,17 @@ function assertCliSource(value: unknown): CliSource {
   throw new Error('INVALID_CLI_SOURCE')
 }
 
+async function readConfiguredLogLevel(configFile: string): Promise<LogLevel> {
+  try {
+    const parsed = JSON.parse(await readFile(configFile, 'utf8')) as { logLevel?: unknown }
+    return ['debug', 'info', 'warn', 'error'].includes(String(parsed.logLevel))
+      ? (parsed.logLevel as LogLevel)
+      : 'info'
+  } catch {
+    return 'info'
+  }
+}
+
 function registerGlobalErrorLogging(logger: ReturnType<typeof initializeLogger>): void {
   process.on('uncaughtExceptionMonitor', (error, origin) => {
     logger.error('app', 'uncaught_exception', '主进程发生未捕获异常', {
@@ -670,6 +693,7 @@ function describeConfigChanges(previous: AppConfig, next: AppConfig): string[] {
   compare('globalPaused', previous.globalPaused, next.globalPaused)
   compare('autoStart', previous.autoStart, next.autoStart)
   compare('closeToTray', previous.closeToTray, next.closeToTray)
+  compare('logLevel', previous.logLevel, next.logLevel)
   compare('defaultAudio.source', previous.defaultAudio.source, next.defaultAudio.source)
   compare('defaultAudio.path', previous.defaultAudio.path, next.defaultAudio.path)
   compare('defaultAudio.volume', previous.defaultAudio.volume, next.defaultAudio.volume)

@@ -11,6 +11,7 @@ export const channels = {
   configSetGlobalPaused: 'config:set-global-paused',
   configSetCloseToTray: 'config:set-close-to-tray',
   configSetAutoStart: 'config:set-auto-start',
+  configSetLogLevel: 'config:set-log-level',
   configChanged: 'config:changed',
   audioImport: 'audio:import',
   audioPreview: 'audio:preview',

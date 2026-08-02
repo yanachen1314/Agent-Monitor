@@ -2,9 +2,9 @@ import { createHash, randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { app } from 'electron'
 import log from 'electron-log/main'
+import type { LogLevel } from '../../shared/types'
 import type { AppPaths } from '../paths'
 
-export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type LogContext = Record<string, unknown>
 
 export interface AppLogger {
@@ -12,21 +12,22 @@ export interface AppLogger {
   info(component: string, event: string, message: string, context?: LogContext): void
   warn(component: string, event: string, message: string, context?: LogContext): void
   error(component: string, event: string, message: string, context?: LogContext): void
+  setLevel(level: LogLevel): void
 }
 
 const REDACTED = '[REDACTED]'
 const sensitiveKeyPattern = /token|password|secret|authorization|cookie/i
 
-export function initializeLogger(paths: AppPaths): AppLogger {
+export function initializeLogger(paths: AppPaths, initialLevel: LogLevel = 'info'): AppLogger {
   log.initialize()
   log.transports.file.resolvePathFn = () => `${paths.logDir}/agent-monitor.log`
   log.transports.file.maxSize = 100 * 1024 * 1024
-  log.transports.file.level = process.env.AGENT_MONITOR_LOG_LEVEL === 'debug' ? 'debug' : 'info'
+  log.transports.file.level = initialLevel
   log.transports.file.format = ({ data }) => data
   log.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : 'info'
 
   const write = (
-    level: AppLogLevel,
+    level: LogLevel,
     component: string,
     event: string,
     message: string,
@@ -53,7 +54,10 @@ export function initializeLogger(paths: AppPaths): AppLogger {
     info: (component, event, message, context) => write('info', component, event, message, context),
     warn: (component, event, message, context) => write('warn', component, event, message, context),
     error: (component, event, message, context) =>
-      write('error', component, event, message, context)
+      write('error', component, event, message, context),
+    setLevel: (level) => {
+      log.transports.file.level = level
+    }
   }
 }
 

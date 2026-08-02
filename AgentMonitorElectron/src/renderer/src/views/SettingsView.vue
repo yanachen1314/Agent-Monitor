@@ -5,6 +5,7 @@ import type {
   AudioMode,
   CliSource,
   HookPreview,
+  LogLevel,
   RuntimeState
 } from '../../../shared/types'
 import { withMinimumDuration } from '../../../shared/minimum-duration'
@@ -79,6 +80,11 @@ function setAutoStart(enabled: boolean): void {
 
 function setCloseToTray(enabled: boolean): void {
   void run('close-to-tray', () => api.setCloseToTray(enabled))
+}
+
+function setLogLevel(event: Event): void {
+  const level = (event.target as HTMLSelectElement).value as LogLevel
+  void run('log-level', () => api.setLogLevel(level))
 }
 
 function setMode(source: CliSource, mode: AudioMode): void {
@@ -335,6 +341,26 @@ function hookLabel(source: CliSource): string {
             :disabled="isBusy('close-to-tray')"
             @update:model-value="setCloseToTray"
           />
+        </div>
+
+        <div class="general-setting-row">
+          <div class="general-setting-copy">
+            <strong>日志记录级别</strong>
+            <span>仅记录所选级别及更严重的日志，排查问题时建议选择 Debug</span>
+          </div>
+          <div class="log-level-select">
+            <select
+              aria-label="日志记录级别"
+              :value="config.logLevel"
+              :disabled="isBusy('log-level')"
+              @change="setLogLevel"
+            >
+              <option value="debug">Debug</option>
+              <option value="info">Info</option>
+              <option value="warn">Warn</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
         </div>
 
         <div class="general-setting-row">

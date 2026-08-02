@@ -12,7 +12,8 @@ describe('AudioQueue', () => {
       debug: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
-      error: vi.fn()
+      error: vi.fn(),
+      setLevel: vi.fn()
     }
     const queue = new AudioQueue((nextCommand) => {
       command = nextCommand

@@ -1,5 +1,6 @@
 export type CliSource = 'claude' | 'codex'
 export type AudioMode = 'default' | 'custom'
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type HookState = 'configured' | 'notConfigured' | 'notDetected' | 'invalid' | 'untrusted'
 
 export interface DefaultAudioConfig {
@@ -21,6 +22,7 @@ export interface AppConfig {
   globalPaused: boolean
   autoStart: boolean
   closeToTray: boolean
+  logLevel: LogLevel
 }
 
 export interface TurnStoppedEvent {
@@ -141,6 +143,7 @@ export interface AgentMonitorApi {
   setGlobalPaused(paused: boolean): Promise<AppConfig>
   setCloseToTray(enabled: boolean): Promise<AppConfig>
   setAutoStart(enabled: boolean): Promise<AppConfig>
+  setLogLevel(level: LogLevel): Promise<AppConfig>
   importAudio(target: 'default' | CliSource): Promise<AppConfig | null>
   previewAudio(target: 'default' | CliSource): Promise<void>
   restoreBuiltinAudio(): Promise<AppConfig>

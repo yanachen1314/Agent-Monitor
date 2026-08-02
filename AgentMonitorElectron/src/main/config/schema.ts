@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const cliSourceSchema = z.enum(['claude', 'codex'])
 export const audioModeSchema = z.enum(['default', 'custom'])
+export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error'])
 
 const cliMonitorSchema = z.object({
   enabled: z.boolean().default(true),
@@ -30,7 +31,8 @@ export const appConfigSchema = z.object({
   }),
   globalPaused: z.boolean().default(false),
   autoStart: z.boolean().default(true),
-  closeToTray: z.boolean().default(true)
+  closeToTray: z.boolean().default(true),
+  logLevel: logLevelSchema.default('info')
 })
 
 export const turnStoppedEventSchema = z.object({

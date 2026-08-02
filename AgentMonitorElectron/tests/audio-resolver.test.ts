@@ -17,7 +17,8 @@ const config: AppConfig = {
   },
   globalPaused: false,
   autoStart: true,
-  closeToTray: true
+  closeToTray: true,
+  logLevel: 'info'
 }
 
 async function createPaths(): Promise<AppPaths> {

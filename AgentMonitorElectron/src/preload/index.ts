@@ -24,6 +24,7 @@ const api: AgentMonitorApi = {
   setGlobalPaused: (paused) => ipcRenderer.invoke(channels.configSetGlobalPaused, paused),
   setCloseToTray: (enabled) => ipcRenderer.invoke(channels.configSetCloseToTray, enabled),
   setAutoStart: (enabled) => ipcRenderer.invoke(channels.configSetAutoStart, enabled),
+  setLogLevel: (level) => ipcRenderer.invoke(channels.configSetLogLevel, level),
   importAudio: (target) => ipcRenderer.invoke(channels.audioImport, target),
   previewAudio: (target) => ipcRenderer.invoke(channels.audioPreview, target),
   restoreBuiltinAudio: () => ipcRenderer.invoke(channels.audioRestoreBuiltin),

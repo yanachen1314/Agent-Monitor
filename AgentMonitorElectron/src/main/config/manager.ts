@@ -1,6 +1,12 @@
 import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, parse } from 'node:path'
-import type { AppConfig, AudioLibraryItem, AudioMode, CliSource } from '../../shared/types'
+import type {
+  AppConfig,
+  AudioLibraryItem,
+  AudioMode,
+  CliSource,
+  LogLevel
+} from '../../shared/types'
 import type { AppPaths } from '../paths'
 import type { AppLogger } from '../logging/logger'
 import { serializeError } from '../logging/logger'
@@ -19,7 +25,8 @@ const defaultConfig: AppConfig = {
   },
   globalPaused: false,
   autoStart: true,
-  closeToTray: true
+  closeToTray: true,
+  logLevel: 'info'
 }
 
 const supportedAudioExtensions = new Set(['.wav', '.mp3', '.ogg'])
@@ -100,6 +107,11 @@ export class ConfigManager {
 
   async setAutoStart(autoStart: boolean): Promise<AppConfig> {
     this.config.autoStart = autoStart
+    return this.saveAndGet()
+  }
+
+  async setLogLevel(logLevel: LogLevel): Promise<AppConfig> {
+    this.config.logLevel = logLevel
     return this.saveAndGet()
   }
 

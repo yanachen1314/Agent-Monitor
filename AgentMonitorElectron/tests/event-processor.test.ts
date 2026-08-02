@@ -11,7 +11,8 @@ const config: AppConfig = {
   },
   globalPaused: false,
   autoStart: true,
-  closeToTray: true
+  closeToTray: true,
+  logLevel: 'info'
 }
 
 function event(overrides: Partial<TurnStoppedEvent> = {}): TurnStoppedEvent {
