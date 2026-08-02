@@ -38,7 +38,7 @@ export class HookManager {
         configPath,
         message: configured
           ? source === 'codex'
-            ? 'Hook 已配置；首次运行时请在 Codex CLI 中确认信任'
+            ? 'Hook 已配置；首次运行时请在 Codex 中确认信任'
             : '官方 Stop Hook 已配置'
           : '已检测到 CLI 配置，但尚未配置提醒 Hook'
       }

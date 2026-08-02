@@ -110,11 +110,11 @@ function redetectHooks(): void {
     const issues = (['claude', 'codex'] as const)
       .filter((source) => state.hooks[source].state !== 'configured')
       .map((source) => {
-        const name = source === 'claude' ? 'Claude Code' : 'Codex CLI'
+        const name = source === 'claude' ? 'Claude Code' : 'Codex'
         return state.hooks[source].state === 'invalid' ? `${name} 配置异常` : `${name} 待配置`
       })
     if (issues.length === 0) {
-      showOperationNotice('success', '检测完成：Claude Code 与 Codex CLI Hook 均已配置')
+      showOperationNotice('success', '检测完成：Claude Code 与 Codex Hook 均已配置')
     } else {
       showOperationNotice('warning', `检测完成：${issues.join('，')}`)
     }
@@ -128,7 +128,7 @@ function repairHooks(): void {
       await api.repairHook('codex')
     }, MINIMUM_REPAIR_LOADING_MS)
     emit('runtime-refresh')
-    showOperationNotice('success', '修复完成：Claude Code 与 Codex CLI Hook 已重新写入')
+    showOperationNotice('success', '修复完成：Claude Code 与 Codex Hook 已重新写入')
   })
 }
 
@@ -215,7 +215,7 @@ function hookLabel(source: CliSource): string {
           <span class="source-badge" :class="`source-badge--${source}`">{{
             source === 'claude' ? 'C' : 'X'
           }}</span>
-          <strong>{{ source === 'claude' ? 'Claude Code' : 'Codex CLI' }} 提醒</strong>
+          <strong>{{ source === 'claude' ? 'Claude Code' : 'Codex' }} 提醒</strong>
           <StatusPill :tone="hookTone(source)">{{ hookLabel(source) }}</StatusPill>
           <button
             v-if="runtime.hooks[source].state === 'configured'"
@@ -340,13 +340,13 @@ function hookLabel(source: CliSource): string {
         <div class="general-setting-row">
           <div class="general-setting-copy">
             <strong>重新检测 Hook</strong>
-            <span>重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态</span>
+            <span>重新读取 Claude Code 与 Codex 的 Hook 配置状态</span>
           </div>
           <button
             class="wide-button general-setting-action"
             :class="{ 'is-loading': isBusy('detect-hooks') }"
             :disabled="isBusy('detect-hooks')"
-            title="重新读取 Claude Code 与 Codex CLI 的 Hook 配置状态"
+            title="重新读取 Claude Code 与 Codex 的 Hook 配置状态"
             @click="redetectHooks"
           >
             <UiIcon name="refresh" />
@@ -386,7 +386,7 @@ function hookLabel(source: CliSource): string {
               <span>版本号</span><strong>{{ appVersion }}</strong>
             </div>
           </div>
-          <p>监控 Claude Code 和 Codex CLI 的 Agent 单轮停止事件并及时播放提示音。</p>
+          <p>监控 Claude Code 和 Codex 的 Agent 单轮停止事件并及时播放提示音。</p>
         </div>
         <div class="about-panel__actions">
           <div class="about-panel__repositories" aria-label="开源仓库">
@@ -417,7 +417,7 @@ function hookLabel(source: CliSource): string {
 
     <BaseModalDialog
       :open="Boolean(hookPreview)"
-      :title="`${hookPreview?.source === 'claude' ? 'Claude Code' : 'Codex CLI'} Hook 配置`"
+      :title="`${hookPreview?.source === 'claude' ? 'Claude Code' : 'Codex'} Hook 配置`"
       @close="hookPreview = null"
     >
       <template v-if="hookPreview">

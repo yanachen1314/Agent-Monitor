@@ -35,7 +35,7 @@ function formatTime(timestamp?: number): string {
 }
 
 function sourceName(source: CliSource): string {
-  return source === 'claude' ? 'Claude Code' : 'Codex CLI'
+  return source === 'claude' ? 'Claude Code' : 'Codex'
 }
 </script>
 

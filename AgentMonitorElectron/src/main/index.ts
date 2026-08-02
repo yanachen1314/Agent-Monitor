@@ -200,7 +200,7 @@ function startDesktopApplication(): void {
     if (!tray || !configManager) return
     const config = configManager.get()
     const label = (source: CliSource): string =>
-      `${source === 'claude' ? 'Claude Code' : 'Codex CLI'}：${
+      `${source === 'claude' ? 'Claude Code' : 'Codex'}：${
         config.monitors[source].enabled ? '已开启' : '已关闭'
       }`
     tray.setContextMenu(
