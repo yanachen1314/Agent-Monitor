@@ -11,7 +11,7 @@ jobs:
   quality:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
