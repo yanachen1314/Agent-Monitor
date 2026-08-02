@@ -8,6 +8,24 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
   {
+    files: ['scripts/**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        Buffer: 'readonly',
+        exports: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        require: 'readonly'
+      }
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off'
+    }
+  },
+  {
     files: ['**/*.{ts,vue}'],
     languageOptions: {
       parserOptions: {
