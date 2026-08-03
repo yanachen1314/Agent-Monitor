@@ -42,6 +42,7 @@ import {
 } from './logging/logger'
 import { createTrayIcon } from './tray-icon'
 import { UpdateService } from './update/service'
+import { isSafeExternalUrl } from './security/external-url'
 
 const hookSource = parseHookSource(process.argv)
 
@@ -236,7 +237,18 @@ function startDesktopApplication(): void {
       }
     })
 
-    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      if (!isSafeExternalUrl(url)) {
+        logger.warn('security', 'external_url_blocked', '已阻止打开不安全的外部链接')
+        return { action: 'deny' }
+      }
+      void shell.openExternal(url).catch((error) => {
+        logger.error('links', 'external_url_open_failed', '外部链接打开失败', {
+          error: serializeError(error)
+        })
+      })
+      return { action: 'deny' }
+    })
     window.webContents.once('did-finish-load', () => {
       logger.info('renderer', 'renderer_ready', 'Renderer 页面加载完成')
       resolveRendererReady?.()

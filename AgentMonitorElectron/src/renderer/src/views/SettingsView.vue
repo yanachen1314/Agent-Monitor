@@ -20,6 +20,7 @@ import StatusPill from '../components/StatusPill.vue'
 import UiIcon from '../components/UiIcon.vue'
 import giteeIcon from '../assets/images/gitee.png'
 import githubIcon from '../assets/images/github.png'
+import { renderReleaseNotes } from '../release-notes'
 
 const props = defineProps<{ config: AppConfig; runtime: RuntimeState }>()
 const emit = defineEmits<{
@@ -130,6 +131,10 @@ const updateTone = computed<'success' | 'warning' | 'muted' | 'accent'>(() => {
   if (status === 'error') return 'warning'
   return 'muted'
 })
+
+const renderedReleaseNotes = computed(() =>
+  updateState.value?.releaseNotes ? renderReleaseNotes(updateState.value.releaseNotes) : ''
+)
 
 watch(
   () => props.config.defaultAudio.volume,
@@ -536,7 +541,9 @@ function hookLabel(source: CliSource): string {
           </div>
           <details v-if="updateState?.releaseNotes" class="update-release-notes">
             <summary>查看更新说明</summary>
-            <p>{{ updateState.releaseNotes }}</p>
+            <!-- 内容经过 DOMPurify 清理后才允许作为 HTML 渲染。 -->
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div class="update-release-notes__content" v-html="renderedReleaseNotes" />
           </details>
         </div>
         <button
