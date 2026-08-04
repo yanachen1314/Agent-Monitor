@@ -12,6 +12,7 @@ import type {
 } from '../shared/types'
 
 const api: AgentMonitorApi = {
+  platform: process.platform,
   minimizeWindow: () => ipcRenderer.send(channels.windowMinimize),
   toggleMaximizeWindow: () => ipcRenderer.send(channels.windowToggleMaximize),
   isWindowMaximized: () => ipcRenderer.invoke(channels.windowGetMaximized),

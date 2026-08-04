@@ -99,9 +99,14 @@ export interface RecentActivity {
 export interface RuntimeState {
   running: boolean
   ipcPort: number | null
+  autoStart: AutoStartState
   hooks: Record<CliSource, HookStatus>
   lastEvent: TurnStoppedEvent | null
   recentActivities: RecentActivity[]
+}
+
+export interface AutoStartState {
+  status: 'unsupported' | 'disabled' | 'enabled' | 'requires-approval'
 }
 
 export interface ResolvedAudio {
@@ -153,6 +158,7 @@ export interface UpdateState {
 }
 
 export interface AgentMonitorApi {
+  readonly platform: string
   minimizeWindow(): void
   toggleMaximizeWindow(): void
   isWindowMaximized(): Promise<boolean>

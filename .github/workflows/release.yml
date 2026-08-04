@@ -145,7 +145,7 @@ jobs:
           cache-dependency-path: AgentMonitorElectron/package-lock.json
       - run: npm ci
       - name: Build macOS installers
-        run: npm run build:mac
+        run: npm run build:mac:release
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}

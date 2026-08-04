@@ -9,6 +9,7 @@ import closeIcon from './assets/images/app_close.png'
 import maximizeIcon from './assets/images/app_maximize-full.png'
 import restoreIcon from './assets/images/app_maxmize-nonfull.png'
 import minimizeIcon from './assets/images/app_minimize.png'
+import { usesNativeWindowControls } from '../../shared/window-platform'
 
 const activeView = ref<'home' | 'settings' | 'audio-manager'>('home')
 const desktop = window.agentMonitor
@@ -19,6 +20,7 @@ const runtimeRefreshing = ref(false)
 const windowMaximized = ref(false)
 const errorMessage = ref('')
 const cleanups: Array<() => void> = []
+const usesNativeControls = usesNativeWindowControls(desktop.platform)
 
 const subtitle = computed(() =>
   config.value?.globalPaused ? '提醒已暂停' : 'Claude / Codex 单轮停止提醒'
@@ -72,7 +74,7 @@ function toggleWindowMaximize(): void {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--mac': usesNativeControls }">
     <div class="ambient ambient--one" />
     <div class="ambient ambient--two" />
 
@@ -84,10 +86,10 @@ function toggleWindowMaximize(): void {
         </div>
         <div>
           <h1>Agent Monitor</h1>
-          <p>{{ subtitle }}</p>
+          <p v-if="!usesNativeControls">{{ subtitle }}</p>
         </div>
       </div>
-      <div class="window-actions">
+      <div v-if="!usesNativeControls" class="window-actions">
         <button title="最小化" aria-label="最小化" @click="desktop.minimizeWindow()">
           <img :src="minimizeIcon" alt="" draggable="false" />
         </button>

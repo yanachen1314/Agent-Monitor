@@ -1,0 +1,8 @@
+extends: ./electron-builder.yml
+mac:
+  forceCodeSigning: true
+  notarize: true
+  target:
+    - target: dmg
+      arch:
+        - arm64

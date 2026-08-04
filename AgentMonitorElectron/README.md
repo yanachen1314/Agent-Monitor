@@ -35,6 +35,24 @@ npm run build
 npm run build:win
 ```
 
+在 Apple Silicon Mac 上构建本地使用的 DMG：
+
+```bash
+npm run build:mac
+```
+
+该命令只生成 arm64 包，使用 ad-hoc 签名且不进行 Apple 公证，适合构建者本机测试，
+不能作为已通过 Gatekeeper 验证的公开发行包。
+
+正式发布 macOS DMG：
+
+```bash
+npm run build:mac:release
+```
+
+正式发布命令同样只生成 arm64 包，并要求 Developer ID 签名身份以及一组完整的 Apple
+公证凭据。缺少凭据时命令会在编译前退出，不会生成可能被误当作正式版本的安装包。
+
 ## 安全边界
 
 - Renderer 禁用 Node.js，启用 `contextIsolation` 和 `sandbox`。
