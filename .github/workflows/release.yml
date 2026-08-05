@@ -128,7 +128,8 @@ jobs:
 
   build-macos:
     name: Build macOS installers
-    if: vars.ENABLE_MACOS_RELEASE == 'true'
+    # macOS release builds are enabled by default; set ENABLE_MACOS_RELEASE=false to opt out.
+    if: vars.ENABLE_MACOS_RELEASE != 'false'
     needs:
       - prepare
       - quality

@@ -1,3 +1,6 @@
+# Private development documentation
+.devDocs
+
 # Node.js / Vue
 node_modules/
 dist/
@@ -29,9 +32,6 @@ src-tauri/target/
 .env
 .env.*
 !.env.example
-
-# Private development documentation
-docs/
 
 # Logs
 logs/

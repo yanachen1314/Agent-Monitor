@@ -33,9 +33,9 @@ Agent Monitor 是一个运行于 Windows 和 macOS 的 Electron 托盘应用。�
 - 展示最近一次提醒与近期活动。
 - 所有监听、状态处理和音频播放均在本地完成。
 
-<img src="./images/img.png" width="648" alt="Agent Monitor 首页">
-<img src="./images/img_3.png" width="648" alt="Agent Monitor 提示音设置">
-<img src="./images/img_2.png" width="648" alt="Agent Monitor 设置页面">
+<img src="resource/images/img.png" width="648" alt="Agent Monitor 首页">
+<img src="resource/images/img_3.png" width="648" alt="Agent Monitor 提示音设置">
+<img src="resource/images/img_2.png" width="648" alt="Agent Monitor 设置页面">
 
 ## 技术栈
 
