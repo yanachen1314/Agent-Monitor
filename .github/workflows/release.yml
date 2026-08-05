@@ -128,8 +128,7 @@ jobs:
 
   build-macos:
     name: Build macOS installers
-    # macOS release builds are enabled by default; set ENABLE_MACOS_RELEASE=false to opt out.
-    if: vars.ENABLE_MACOS_RELEASE != 'false'
+    # Build an unsigned Apple Silicon DMG; signing and notarization are intentionally not required.
     needs:
       - prepare
       - quality
@@ -146,13 +145,7 @@ jobs:
           cache-dependency-path: AgentMonitorElectron/package-lock.json
       - run: npm ci
       - name: Build macOS installers
-        run: npm run build:mac:release
-        env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run build:mac
       - name: Upload macOS release files
         uses: actions/upload-artifact@v6
         with:
