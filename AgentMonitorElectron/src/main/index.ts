@@ -43,6 +43,8 @@ import {
 import { createTrayIcon } from './tray-icon'
 import { UpdateService } from './update/service'
 import { isSafeExternalUrl } from './security/external-url'
+import { getAutoStartState, shouldStartHidden, syncLoginItem } from './login-item'
+import { getWindowChromeOptions } from './window-chrome'
 
 const hookSource = parseHookSource(process.argv)
 
@@ -100,6 +102,7 @@ function startDesktopApplication(): void {
   let updateService: UpdateService
   let logger: ReturnType<typeof initializeLogger>
   let lastLoggedConfig: AppConfig | null = null
+  let startHidden = process.argv.includes('--hidden')
   let resolveRendererReady: (() => void) | null = null
   const rendererReady = new Promise<void>((resolve) => {
     resolveRendererReady = resolve
@@ -126,6 +129,7 @@ function startDesktopApplication(): void {
     return {
       running: true,
       ipcPort: ipcRuntime?.transport === 'tcp' ? ipcRuntime.port : null,
+      autoStart: getAutoStartState(app, process.platform),
       hooks: await hookManager.getStatuses(),
       lastEvent: eventProcessor.getLastEvent(),
       recentActivities: eventProcessor.getActivities()
@@ -225,7 +229,7 @@ function startDesktopApplication(): void {
       minWidth: 900,
       minHeight: 650,
       show: false,
-      frame: false,
+      ...getWindowChromeOptions(process.platform),
       transparent: false,
       backgroundColor: '#f8f6ff',
       title: 'Agent Monitor',
@@ -288,7 +292,7 @@ function startDesktopApplication(): void {
       }
     })
     window.on('ready-to-show', () => {
-      if (!process.argv.includes('--hidden')) window.show()
+      if (!startHidden) window.show()
     })
     window.on('maximize', () => {
       window.webContents.send(channels.windowMaximizedChanged, true)
@@ -434,11 +438,10 @@ function startDesktopApplication(): void {
     })
     ipcMain.handle(channels.configSetAutoStart, async (event, enabled: boolean) => {
       assertTrustedFrame(event)
-      app.setLoginItemSettings({
-        openAtLogin: Boolean(enabled),
-        args: ['--hidden']
-      })
-      emitConfig(await configManager.setAutoStart(Boolean(enabled)))
+      const desired = Boolean(enabled)
+      emitConfig(await configManager.setAutoStart(desired))
+      syncLoginItem(app, process.platform, desired)
+      emitRuntimeSafely()
       return configManager.get()
     })
     ipcMain.handle(channels.configSetLogLevel, async (event, level: LogLevel) => {
@@ -633,6 +636,7 @@ function startDesktopApplication(): void {
     .whenReady()
     .then(async () => {
       electronApp.setAppUserModelId('com.agentmonitor.desktop')
+      startHidden = shouldStartHidden(app, process.platform, process.argv)
       paths = createAppPaths()
       logger = initializeLogger(paths, await readConfiguredLogLevel(paths.configFile))
       registerGlobalErrorLogging(logger)
@@ -640,16 +644,13 @@ function startDesktopApplication(): void {
         electronVersion: process.versions.electron,
         nodeVersion: process.versions.node,
         packaged: app.isPackaged,
-        hidden: process.argv.includes('--hidden')
+        hidden: startHidden
       })
       configManager = new ConfigManager(paths, logger)
       const initialConfig = await configManager.initialize()
       logger.setLevel(initialConfig.logLevel)
       lastLoggedConfig = structuredClone(initialConfig)
-      app.setLoginItemSettings({
-        openAtLogin: initialConfig.autoStart,
-        args: ['--hidden']
-      })
+      syncLoginItem(app, process.platform, initialConfig.autoStart)
       hookManager = new HookManager(paths)
       await refreshConfiguredHooks(hookManager, logger).catch((error) => {
         logger.error('hook', 'hook_refresh_failed', '刷新 Hook 命令失败', {

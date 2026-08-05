@@ -189,7 +189,10 @@ function setGlobalReminder(enabled: boolean): void {
 }
 
 function setAutoStart(enabled: boolean): void {
-  void run('auto-start', () => api.setAutoStart(enabled))
+  void run('auto-start', async () => {
+    await api.setAutoStart(enabled)
+    emit('runtime-refresh')
+  })
 }
 
 function setCloseToTray(enabled: boolean): void {
@@ -450,12 +453,15 @@ function hookLabel(source: CliSource): string {
 
         <div class="general-setting-row">
           <div class="general-setting-copy">
-            <strong>开机自动启动</strong>
-            <span>登录 Windows 后自动启动 Agent Monitor 并在后台监听</span>
+            <strong>登录系统后自动启动</strong>
+            <span>登录系统后自动启动 Agent Monitor，并在后台监听</span>
+            <span v-if="runtime.autoStart.status === 'requires-approval'" class="warning-copy">
+              请前往“系统设置 → 通用 → 登录项”，允许 Agent Monitor 在登录时打开。
+            </span>
           </div>
           <BaseToggle
             :model-value="config.autoStart"
-            label="开机自动启动"
+            label="登录系统后自动启动"
             :disabled="isBusy('auto-start')"
             @update:model-value="setAutoStart"
           />
@@ -463,12 +469,12 @@ function hookLabel(source: CliSource): string {
 
         <div class="general-setting-row">
           <div class="general-setting-copy">
-            <strong>关闭窗口后驻留托盘</strong>
-            <span>关闭主窗口时继续在后台运行，可从系统托盘重新打开</span>
+            <strong>关闭窗口后驻留后台</strong>
+            <span>关闭主窗口时继续运行，可从菜单栏或系统托盘重新打开</span>
           </div>
           <BaseToggle
             :model-value="config.closeToTray"
-            label="关闭窗口后驻留托盘"
+            label="关闭窗口后驻留后台"
             :disabled="isBusy('close-to-tray')"
             @update:model-value="setCloseToTray"
           />
